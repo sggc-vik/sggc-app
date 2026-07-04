@@ -970,23 +970,26 @@
         }
 
         // ============================================================
-        // FETCH DATI REALI DA USGS E NOAA
+        // FETCH DATI REALI CON PROXY (AllOrigins)
         // ============================================================
+        async function fetchWithProxy(url) {
+            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+            const response = await fetch(proxyUrl);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return await response.json();
+        }
+
         async function fetchRealData() {
             try {
-                // 1. USGS Earthquakes (ultimi 30 giorni, M≥4.5)
-                const quakeRes = await fetch(
+                // 1. USGS Earthquakes via proxy
+                const quakeData = await fetchWithProxy(
                     'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_month.geojson'
                 );
-                if (!quakeRes.ok) throw new Error('USGS API error');
-                const quakeData = await quakeRes.json();
 
-                // 2. NOAA Kp Index (ultimi 30 giorni)
-                const kpRes = await fetch(
+                // 2. NOAA Kp Index via proxy
+                const kpRaw = await fetchWithProxy(
                     'https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json'
                 );
-                if (!kpRes.ok) throw new Error('NOAA API error');
-                const kpRaw = await kpRes.json();
 
                 // 3. Elabora dati
                 const quakeEvents = quakeData.features || [];
@@ -1040,11 +1043,9 @@
             state.isLoading = true;
             document.getElementById('refreshBtn').classList.add('spinning');
 
-            // Mostra stato "Caricamento..."
             document.getElementById('dataSource').textContent = '📡 Caricamento dati reali...';
 
             try {
-                // Prova a caricare dati reali
                 const realData = await fetchRealData();
 
                 if (realData && realData.length > 0) {
@@ -1054,7 +1055,6 @@
                     document.getElementById('statusDot').className = 'status-dot online';
                     console.log('✅ Dati reali caricati con successo');
                 } else {
-                    // Fallback ai dati fittizi
                     state.data = generateFallbackData();
                     state.usingFallback = true;
                     document.getElementById('dataSource').innerHTML = '⚠️ Dati: <span class="data-source fallback">SIMULATI (fallback)</span>';
@@ -1062,7 +1062,6 @@
                     console.log('⚠️ Usando dati fittizi come fallback');
                 }
             } catch (error) {
-                // Fallback ai dati fittizi in caso di errore
                 state.data = generateFallbackData();
                 state.usingFallback = true;
                 document.getElementById('dataSource').innerHTML = '⚠️ Dati: <span class="data-source fallback">SIMULATI (errore)</span>';
@@ -1070,7 +1069,6 @@
                 console.warn('⚠️ Errore, usando dati fittizi:', error.message);
             }
 
-            // Aggiorna tutto
             updateAll();
 
             state.isLoading = false;
@@ -1596,15 +1594,12 @@
         }
 
         initChart();
-
-        // CARICA DATI ALL'AVVIO
         loadData();
 
-        // AGGIORNAMENTO AUTOMATICO OGNI 2 MINUTI
         setInterval(loadData, 120000);
 
         console.log('🌍 Osservatorio SGCC — Monitoraggio Anomalie');
-        console.log('📡 Tentativo di caricamento dati reali da USGS/NOAA');
+        console.log('📡 Dati reali da USGS/NOAA via proxy');
         console.log('⚠️ Fallback automatico a dati simulati in caso di errore');
         console.log('📱 Ottimizzata per touch con rilevamento anomalie in tempo reale');
         console.log('🔔 Notifiche attive per anomalie critiche');
