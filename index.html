@@ -970,25 +970,47 @@
         }
 
         // ============================================================
-        // FETCH DATI REALI (con proxy pubblico)
+        // FETCH DATI REALI - MULTIPROXY (più affidabile)
         // ============================================================
+        async function fetchWithProxy(url) {
+            // Lista di proxy da provare in sequenza
+            const proxies = [
+                `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+                `https://corsproxy.io/?${encodeURIComponent(url)}`,
+                `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
+            ];
+
+            for (const proxyUrl of proxies) {
+                try {
+                    console.log(`📡 Tentativo proxy: ${proxyUrl.slice(0, 40)}...`);
+                    const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(8000) });
+                    if (!res.ok) continue;
+                    const data = await res.json();
+                    if (data && (Array.isArray(data) || data.features)) {
+                        console.log(`✅ Proxy funzionante: ${proxyUrl.slice(0, 40)}...`);
+                        return data;
+                    }
+                } catch (e) {
+                    console.log(`⚠️ Proxy fallito, provo il prossimo...`);
+                    continue;
+                }
+            }
+            throw new Error('Nessun proxy funzionante');
+        }
+
         async function fetchRealData() {
             try {
-                // 1. USGS Earthquakes via proxy
-                console.log('📡 Chiamata USGS...');
-                const quakeRes = await fetch(
-                    'https://api.allorigins.win/raw?url=https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_month.geojson'
-                );
-                if (!quakeRes.ok) throw new Error(`USGS HTTP ${quakeRes.status}`);
-                const quakeData = await quakeRes.json();
+                console.log('📡 Caricamento dati reali...');
 
-                // 2. NOAA Kp Index via proxy
-                console.log('📡 Chiamata NOAA...');
-                const kpRes = await fetch(
-                    'https://api.allorigins.win/raw?url=https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json'
+                // 1. USGS Earthquakes
+                const quakeData = await fetchWithProxy(
+                    'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_month.geojson'
                 );
-                if (!kpRes.ok) throw new Error(`NOAA HTTP ${kpRes.status}`);
-                const kpRaw = await kpRes.json();
+
+                // 2. NOAA Kp Index
+                const kpRaw = await fetchWithProxy(
+                    'https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json'
+                );
 
                 // 3. Verifica dati
                 if (!quakeData.features || quakeData.features.length === 0) {
@@ -1630,7 +1652,7 @@
         setInterval(loadData, 120000);
 
         console.log('🌍 Osservatorio SGCC — Monitoraggio Anomalie');
-        console.log('📡 Dati reali da USGS/NOAA via proxy');
+        console.log('📡 Multi-proxy attivo: 3 tentativi per ogni API');
         console.log('⚠️ Fallback automatico a dati simulati in caso di errore');
         console.log('📱 Ottimizzata per touch con rilevamento anomalie in tempo reale');
         console.log('🔔 Notifiche attive per anomalie critiche');
