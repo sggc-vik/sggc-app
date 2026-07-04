@@ -57,9 +57,12 @@
             border: 1px solid #2d3a4a;
             white-space: nowrap;
         }
-        .badge span {
-            color: #60a5fa;
+        .badge .data-source {
+            color: #4ade80;
             font-weight: 600;
+        }
+        .badge .data-source.fallback {
+            color: #facc15;
         }
         .refresh-btn {
             background: #1e2a3a;
@@ -143,6 +146,9 @@
         }
         .status-dot.offline {
             background: #ef4444;
+        }
+        .status-dot.fallback {
+            background: #facc15;
         }
         .kpi-grid {
             display: grid;
@@ -633,7 +639,8 @@
             <span>
                 <span class="status-dot online" id="statusDot"></span>
                 <span class="time" id="lastUpdate">--:-- UTC</span>
-                <span style="color:#64748b;font-size:11px;">• Dati aggiornati in tempo reale</span>
+                <span style="color:#64748b;font-size:11px;">•</span>
+                <span style="color:#64748b;font-size:11px;" id="dataSource">Dati: caricamento...</span>
             </span>
             <span style="font-size:11px;color:#64748b;" id="dataAge">Ultimo aggiornamento: ora</span>
         </div>
@@ -797,13 +804,14 @@
             kpThreshold: 0,
             mode: 'base',
             chartInstance: null,
-            isLoading: false
+            isLoading: false,
+            usingFallback: false
         };
 
         // ============================================================
-        // GENERA DATI REALISTICI
+        // GENERA DATI FITTIZI (FALLBACK)
         // ============================================================
-        function generateRealisticData() {
+        function generateFallbackData() {
             const now = new Date();
             const days = 30;
             const data = [];
@@ -962,15 +970,105 @@
         }
 
         // ============================================================
-        // CARICA DATI (FISSO)
+        // FETCH DATI REALI DA USGS E NOAA
         // ============================================================
-        function loadData() {
+        async function fetchRealData() {
+            try {
+                // 1. USGS Earthquakes (ultimi 30 giorni, M≥4.5)
+                const quakeRes = await fetch(
+                    'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_month.geojson'
+                );
+                if (!quakeRes.ok) throw new Error('USGS API error');
+                const quakeData = await quakeRes.json();
+
+                // 2. NOAA Kp Index (ultimi 30 giorni)
+                const kpRes = await fetch(
+                    'https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json'
+                );
+                if (!kpRes.ok) throw new Error('NOAA API error');
+                const kpRaw = await kpRes.json();
+
+                // 3. Elabora dati
+                const quakeEvents = quakeData.features || [];
+                const kpValues = kpRaw.slice(1).map(row => ({
+                    date: new Date(row[0]),
+                    kp: parseFloat(row[1]) || 0
+                }));
+
+                // Aggrega terremoti per giorno
+                const quakeByDay = {};
+                quakeEvents.forEach(f => {
+                    const d = new Date(f.properties.time);
+                    const key = d.toISOString().slice(0, 10);
+                    if (!quakeByDay[key]) {
+                        quakeByDay[key] = { count: 0, maxMag: 0 };
+                    }
+                    quakeByDay[key].count++;
+                    quakeByDay[key].maxMag = Math.max(quakeByDay[key].maxMag, f.properties.mag || 0);
+                });
+
+                // Combina Kp e terremoti
+                const combined = [];
+                const now = new Date();
+                for (let i = 30; i >= 0; i--) {
+                    const d = new Date(now);
+                    d.setDate(d.getDate() - i);
+                    const key = d.toISOString().slice(0, 10);
+                    const kpMatch = kpValues.find(k => k.date.toISOString().slice(0, 10) === key);
+                    const quakeMatch = quakeByDay[key] || { count: 0, maxMag: 0 };
+                    combined.push({
+                        date: d,
+                        kp: kpMatch ? Math.round(kpMatch.kp * 10) / 10 : 0,
+                        quakes: quakeMatch.count,
+                        maxMag: quakeMatch.maxMag || 0
+                    });
+                }
+
+                return combined;
+
+            } catch (error) {
+                console.warn('⚠️ Errore fetch dati reali:', error.message);
+                return null;
+            }
+        }
+
+        // ============================================================
+        // CARICA DATI (con fallback)
+        // ============================================================
+        async function loadData() {
             if (state.isLoading) return;
             state.isLoading = true;
             document.getElementById('refreshBtn').classList.add('spinning');
 
-            // Genera i dati
-            state.data = generateRealisticData();
+            // Mostra stato "Caricamento..."
+            document.getElementById('dataSource').textContent = '📡 Caricamento dati reali...';
+
+            try {
+                // Prova a caricare dati reali
+                const realData = await fetchRealData();
+
+                if (realData && realData.length > 0) {
+                    state.data = realData;
+                    state.usingFallback = false;
+                    document.getElementById('dataSource').innerHTML = '📡 Dati: <span class="data-source">USGS/NOAA (reali)</span>';
+                    document.getElementById('statusDot').className = 'status-dot online';
+                    console.log('✅ Dati reali caricati con successo');
+                } else {
+                    // Fallback ai dati fittizi
+                    state.data = generateFallbackData();
+                    state.usingFallback = true;
+                    document.getElementById('dataSource').innerHTML = '⚠️ Dati: <span class="data-source fallback">SIMULATI (fallback)</span>';
+                    document.getElementById('statusDot').className = 'status-dot fallback';
+                    console.log('⚠️ Usando dati fittizi come fallback');
+                }
+            } catch (error) {
+                // Fallback ai dati fittizi in caso di errore
+                state.data = generateFallbackData();
+                state.usingFallback = true;
+                document.getElementById('dataSource').innerHTML = '⚠️ Dati: <span class="data-source fallback">SIMULATI (errore)</span>';
+                document.getElementById('statusDot').className = 'status-dot fallback';
+                console.warn('⚠️ Errore, usando dati fittizi:', error.message);
+            }
 
             // Aggiorna tutto
             updateAll();
@@ -978,7 +1076,7 @@
             state.isLoading = false;
             document.getElementById('refreshBtn').classList.remove('spinning');
 
-            console.log(`✅ Dati aggiornati: ${state.data.length} giorni`);
+            console.log(`✅ Dati caricati: ${state.data.length} giorni`);
         }
 
         // ============================================================
@@ -1502,11 +1600,12 @@
         // CARICA DATI ALL'AVVIO
         loadData();
 
-        // AGGIORNAMENTO AUTOMATICO OGNI 30 SECONDI
-        setInterval(loadData, 30000);
+        // AGGIORNAMENTO AUTOMATICO OGNI 2 MINUTI
+        setInterval(loadData, 120000);
 
         console.log('🌍 Osservatorio SGCC — Monitoraggio Anomalie');
-        console.log('📊 Dati generati con distribuzioni realistiche basate su SGGC 2000-2026');
+        console.log('📡 Tentativo di caricamento dati reali da USGS/NOAA');
+        console.log('⚠️ Fallback automatico a dati simulati in caso di errore');
         console.log('📱 Ottimizzata per touch con rilevamento anomalie in tempo reale');
         console.log('🔔 Notifiche attive per anomalie critiche');
         console.log('📈 Analisi statistica: correlazione Spearman + FDR');
