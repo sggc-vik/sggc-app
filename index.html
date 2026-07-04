@@ -970,63 +970,94 @@
         }
 
         // ============================================================
-        // FETCH DATI REALI CON PROXY (AllOrigins)
+        // FETCH DATI REALI (con proxy pubblico)
         // ============================================================
-        async function fetchWithProxy(url) {
-            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-            const response = await fetch(proxyUrl);
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            return await response.json();
-        }
-
         async function fetchRealData() {
             try {
                 // 1. USGS Earthquakes via proxy
-                const quakeData = await fetchWithProxy(
-                    'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_month.geojson'
+                console.log('📡 Chiamata USGS...');
+                const quakeRes = await fetch(
+                    'https://api.allorigins.win/raw?url=https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_month.geojson'
                 );
+                if (!quakeRes.ok) throw new Error(`USGS HTTP ${quakeRes.status}`);
+                const quakeData = await quakeRes.json();
 
                 // 2. NOAA Kp Index via proxy
-                const kpRaw = await fetchWithProxy(
-                    'https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json'
+                console.log('📡 Chiamata NOAA...');
+                const kpRes = await fetch(
+                    'https://api.allorigins.win/raw?url=https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json'
                 );
+                if (!kpRes.ok) throw new Error(`NOAA HTTP ${kpRes.status}`);
+                const kpRaw = await kpRes.json();
 
-                // 3. Elabora dati
+                // 3. Verifica dati
+                if (!quakeData.features || quakeData.features.length === 0) {
+                    throw new Error('USGS: nessun terremoto trovato');
+                }
+                if (!kpRaw || kpRaw.length < 2) {
+                    throw new Error('NOAA: dati Kp non validi');
+                }
+
+                // 4. Elabora terremoti
                 const quakeEvents = quakeData.features || [];
-                const kpValues = kpRaw.slice(1).map(row => ({
-                    date: new Date(row[0]),
-                    kp: parseFloat(row[1]) || 0
-                }));
-
-                // Aggrega terremoti per giorno
                 const quakeByDay = {};
                 quakeEvents.forEach(f => {
+                    if (!f.properties) return;
                     const d = new Date(f.properties.time);
                     const key = d.toISOString().slice(0, 10);
                     if (!quakeByDay[key]) {
                         quakeByDay[key] = { count: 0, maxMag: 0 };
                     }
                     quakeByDay[key].count++;
-                    quakeByDay[key].maxMag = Math.max(quakeByDay[key].maxMag, f.properties.mag || 0);
+                    const mag = f.properties.mag || 0;
+                    if (mag > quakeByDay[key].maxMag) {
+                        quakeByDay[key].maxMag = mag;
+                    }
                 });
 
-                // Combina Kp e terremoti
+                // 5. Elabora Kp
+                const kpValues = {};
+                for (let i = 1; i < kpRaw.length; i++) {
+                    const row = kpRaw[i];
+                    if (!row || row.length < 2) continue;
+                    const dateStr = row[0];
+                    const kpVal = parseFloat(row[1]);
+                    if (isNaN(kpVal)) continue;
+                    const date = new Date(dateStr);
+                    const key = date.toISOString().slice(0, 10);
+                    if (!kpValues[key]) {
+                        kpValues[key] = [];
+                    }
+                    kpValues[key].push(kpVal);
+                }
+
+                // 6. Combina i dati
                 const combined = [];
                 const now = new Date();
                 for (let i = 30; i >= 0; i--) {
                     const d = new Date(now);
                     d.setDate(d.getDate() - i);
                     const key = d.toISOString().slice(0, 10);
-                    const kpMatch = kpValues.find(k => k.date.toISOString().slice(0, 10) === key);
+                    const kpArray = kpValues[key] || [];
+                    const avgKp = kpArray.length > 0 ?
+                        Math.round(kpArray.reduce((a, b) => a + b, 0) / kpArray.length * 10) / 10 :
+                        0;
                     const quakeMatch = quakeByDay[key] || { count: 0, maxMag: 0 };
                     combined.push({
                         date: d,
-                        kp: kpMatch ? Math.round(kpMatch.kp * 10) / 10 : 0,
+                        kp: avgKp,
                         quakes: quakeMatch.count,
                         maxMag: quakeMatch.maxMag || 0
                     });
                 }
 
+                // 7. Verifica dati validi
+                const hasData = combined.some(d => d.kp > 0 || d.quakes > 0);
+                if (!hasData) {
+                    throw new Error('Nessun dato valido dopo l\'elaborazione');
+                }
+
+                console.log(`✅ Dati reali caricati: ${combined.length} giorni`);
                 return combined;
 
             } catch (error) {
