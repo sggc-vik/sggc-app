@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes" />
+    <title>Osservatorio SGCC — Monitoraggio Anomalie</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js">
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        body {
+            font-family: -apple-system, 'Segoe UI', Roboto, sans-serif;
+            background: #0b0e14;
+            color: #e8edf5;
+            padding: 12px;
+            min-height: 100vh;
+            touch-action: manipulation;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* HEADER */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #1e2a3a;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .header h1 {
+            font-size: 20px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #6c8cff, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .badge {
+            background: #1e2a3a;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            color: #94a3b8;
+            border: 1px solid #2d3a4a;
+            white-space: nowrap;
+        }
+        .badge span {
+            color: #60a5fa;
+            font-weight: 600;
+        }
+        .refresh-btn {
+            background: #1e2a3a;
+            border: 1px solid #2d3a4a;
+            color: #60a5fa;
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            touch-action: manipulation;
+            min-height: 32px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .refresh-btn:active {
+            transform: scale(0.95);
+        }
+        .refresh-btn.spinning {
+            animation: spin 0.8s ease-in-out;
+        }
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+        .mode-toggle {
+            display: flex;
+            gap: 4px;
+            background: #141c26;
+            padding: 3px;
+            border-radius: 30px;
+            border: 1px solid #1e2a3a;
+        }
+        .mode-toggle button {
+            background: transparent;
+            border: none;
+            color: #94a3b8;
+            padding: 5px 14px;
+            border-radius: 30px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+        .mode-toggle button.active {
+            background: #2d3a4a;
+            color: #e8edf5;
+        }
+        .mode-toggle button:active {
+            transform: scale(.95);
+        }
+
+        /* TIMESTAMP */
+        .timestamp-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0 6px 0;
+            font-size: 12px;
+            color: #94a3b8;
+            border-bottom: 1px solid #1a2535;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+        .timestamp-row .time {
+            color: #60a5fa;
+            font-weight: 500;
+        }
+        .timestamp-row .status-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+        .status-dot.online {
+            background: #4ade80;
+        }
+        .status-dot.offline {
+            background: #ef4444;
+        }
+
+        /* KPI */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin: 12px 0;
+        }
+        .kpi-card {
+            background: #111a24;
+            border: 1px solid #1e2a3a;
+            border-radius: 12px;
+            padding: 12px 14px;
+            position: relative;
+        }
+        .kpi-card .label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            color: #94a3b8;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .kpi-card .label .info-icon {
+            color: #64748b;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 0 4px;
+            touch-action: manipulation;
+        }
+        .kpi-card .label .info-icon:active {
+            transform: scale(0.9);
+        }
+        .kpi-card .value {
+            font-size: 24px;
+            font-weight: 700;
+            margin-top: 2px;
+        }
+        .kpi-card .sub {
+            font-size: 12px;
+            color: #b0c4de;
+            margin-top: 1px;
+        }
+        .kpi-card .status-badge {
+            font-size: 10px;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-weight: 600;
+        }
+        .kpi-card .value.green {
+            color: #4ade80;
+        }
+        .kpi-card .value.blue {
+            color: #60a5fa;
+        }
+        .kpi-card .value.orange {
+            color: #fb923c;
+        }
+        .kpi-card .value.purple {
+            color: #a78bfa;
+        }
+        .kpi-card .value.red {
+            color: #ef4444;
+        }
+        .kpi-card .value.yellow {
+            color: #facc15;
+        }
+        .status-normal {
+            background: #064e3b;
+            color: #4ade80;
+        }
+        .status-warning {
+            background: #78350f;
+            color: #facc15;
+        }
+        .status-alert {
+            background: #7f1d1d;
+            color: #ef4444;
+        }
+        .status-critical {
+            background: #450a0a;
+            color: #f87171;
+            animation: pulse-red 1.5s infinite;
+        }
+        @keyframes pulse-red {
+            0%,
+            100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        /* SEZIONE STATISTICHE */
+        .stats-panel {
+            background: #111a24;
+            border: 1px solid #1e2a3a;
+            border-radius: 12px;
+            padding: 14px;
+            margin: 14px 0;
+        }
+        .stats-panel .panel-title {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 8px;
+        }
+        .stats-item {
+            text-align: center;
+            padding: 6px;
+            background: #0d1520;
+            border-radius: 8px;
+        }
+        .stats-item .stat-label {
+            font-size: 9px;
+            text-transform: uppercase;
+            color: #64748b;
+            letter-spacing: 0.3px;
+        }
+        .stats-item .stat-value {
+            font-size: 16px;
+            font-weight: 700;
+            margin-top: 2px;
+        }
+        .stats-item .stat-value.positive {
+            color: #4ade80;
+        }
+        .stats-item .stat-value.negative {
+            color: #ef4444;
+        }
+        .stats-item .stat-value.neutral {
+            color: #facc15;
+        }
+        .stats-item .stat-value .small {
+            font-size: 11px;
+            font-weight: 400;
+            color: #94a3b8;
+        }
+        .stats-status {
+            margin-top: 8px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .stats-status.null {
+            background: #064e3b;
+            color: #4ade80;
+        }
+        .stats-status.significant {
+            background: #7f1d1d;
+            color: #ef4444;
+        }
+
+        /* CHART */
+        .chart-wrapper {
+            background: #111a24;
+            border: 1px solid #1e2a3a;
+            border-radius: 12px;
+            padding: 14px;
+            margin: 14px 0;
+        }
+        .chart-wrapper .chart-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .chart-wrapper .chart-title h3 {
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .chart-wrapper .chart-title .lag-info {
+            font-size: 11px;
+            color: #94a3b8;
+            background: #1e2a3a;
+            padding: 3px 10px;
+            border-radius: 20px;
+            white-space: nowrap;
+        }
+        .chart-container {
+            position: relative;
+            height: 220px;
+            touch-action: none;
+        }
+        @media(min-width:768px) {
+            .chart-container {
+                height: 280px;
+            }
+            .stats-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        /* TIME-LAG */
+        .lag-controls {
+            margin-top: 12px;
+        }
+        .lag-slider-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .lag-slider-row label {
+            font-size: 12px;
+            color: #94a3b8;
+            white-space: nowrap;
+        }
+        .lag-slider-row input[type=range] {
+            flex: 1;
+            min-width: 80px;
+            accent-color: #60a5fa;
+            background: #1e2a3a;
+            height: 4px;
+            border-radius: 4px;
+            touch-action: none;
+        }
+        .lag-slider-row .lag-value {
+            font-size: 14px;
+            font-weight: 600;
+            min-width: 50px;
+            text-align: center;
+        }
+        .lag-slider-row .reset-btn {
+            background: #1e2a3a;
+            border: 1px solid #2d3a4a;
+            color: #94a3b8;
+            padding: 2px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            cursor: pointer;
+            touch-action: manipulation;
+            min-height: 30px;
+        }
+        .lag-slider-row .reset-btn:active {
+            transform: scale(.95);
+        }
+        .lag-presets {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+            justify-content: center;
+        }
+        .lag-presets button {
+            background: #1e2a3a;
+            border: 1px solid #2d3a4a;
+            color: #94a3b8;
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-size: 11px;
+            cursor: pointer;
+            touch-action: manipulation;
+            min-height: 32px;
+            min-width: 44px;
+        }
+        .lag-presets button:active {
+            transform: scale(.92);
+        }
+        .lag-presets button.active-preset {
+            background: #2d3a4a;
+            border-color: #60a5fa;
+            color: #60a5fa;
+        }
+
+        /* ANOMALIES */
+        .anomalies-panel {
+            background: #111a24;
+            border: 1px solid #1e2a3a;
+            border-radius: 12px;
+            padding: 14px;
+            margin: 14px 0;
+        }
+        .anomalies-panel .panel-title {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .anomaly-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 0;
+            border-bottom: 1px solid #1e2a3a;
+            font-size: 13px;
+        }
+        .anomaly-item:last-child {
+            border-bottom: none;
+        }
+        .anomaly-item .icon {
+            font-size: 16px;
+        }
+        .anomaly-item .desc {
+            flex: 1;
+            color: #e8edf5;
+        }
+        .anomaly-item .value-badge {
+            font-weight: 600;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+        }
+
+        /* FILTERS */
+        .filters-panel {
+            display: none;
+            background: #111a24;
+            border: 1px solid #1e2a3a;
+            border-radius: 12px;
+            padding: 16px;
+            margin: 14px 0;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .filters-panel.visible {
+            display: flex;
+        }
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .filter-group label {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #64748b;
+            letter-spacing: .3px;
+        }
+        .filter-group .filter-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .filter-group input[type=range] {
+            flex: 1;
+            accent-color: #60a5fa;
+            background: #1e2a3a;
+            height: 4px;
+            border-radius: 4px;
+            touch-action: none;
+        }
+        .filter-group .range-value {
+            font-size: 14px;
+            font-weight: 600;
+            min-width: 50px;
+            text-align: center;
+        }
+        .preset-buttons {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .preset-buttons button {
+            background: #1e2a3a;
+            border: 1px solid #2d3a4a;
+            color: #94a3b8;
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-size: 11px;
+            cursor: pointer;
+            touch-action: manipulation;
+            min-height: 32px;
+        }
+        .preset-buttons button:active {
+            transform: scale(.95);
+        }
+        .preset-buttons button.active-preset {
+            background: #2d3a4a;
+            color: #60a5fa;
+            border-color: #60a5fa;
+        }
+        .export-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .export-row button {
+            background: #1e2a3a;
+            border: 1px solid #2d3a4a;
+            color: #e8edf5;
+            padding: 5px 16px;
+            border-radius: 8px;
+            font-size: 12px;
+            cursor: pointer;
+            touch-action: manipulation;
+            min-height: 36px;
+        }
+        .export-row button:active {
+            transform: scale(.95);
+            background: #2d3a4a;
+        }
+
+        /* TOOLTIP */
+        .tooltip {
+            display: none;
+            position: absolute;
+            background: #1a2535;
+            border: 1px solid #2d3a4a;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 12px;
+            color: #e8edf5;
+            max-width: 260px;
+            z-index: 100;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+        }
+        .tooltip.visible {
+            display: block;
+        }
+        .tooltip .title {
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: #60a5fa;
+        }
+        .tooltip .body {
+            color: #b0c4de;
+            line-height: 1.5;
+        }
+
+        /* SGGC NOTE */
+        .sggc-note {
+            margin-top: 14px;
+            padding: 12px 16px;
+            background: #0d1520;
+            border: 1px solid #1e2a3a;
+            border-radius: 12px;
+            font-size: 12px;
+            color: #94a3b8;
+            line-height: 1.6;
+            text-align: center;
+        }
+        .sggc-note strong {
+            color: #e8edf5;
+        }
+        .sggc-note .highlight {
+            color: #60a5fa;
+        }
+        .sggc-note .result-big {
+            font-size: 18px;
+            font-weight: 700;
+            color: #4ade80;
+        }
+
+        /* FOOTER */
+        .footer {
+            margin-top: 20px;
+            padding-top: 12px;
+            border-top: 1px solid #1e2a3a;
+            font-size: 11px;
+            color: #64748b;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            text-align: center;
+        }
+        .footer a {
+            color: #60a5fa;
+            text-decoration: none;
+        }
+
+        @media(min-width:640px) {
+            body {
+                padding: 24px
+            }
+            .kpi-grid {
+                grid-template-columns: repeat(4, 1fr);
+                gap: 16px
+            }
+            .kpi-card {
+                padding: 16px 20px
+            }
+            .kpi-card .value {
+                font-size: 28px
+            }
+            .filters-panel {
+                flex-direction: row;
+                flex-wrap: wrap;
+                align-items: center
+            }
+            .filter-group {
+                flex: 1;
+                min-width: 140px
+            }
+            .footer {
+                flex-direction: row;
+                justify-content: space-between;
+                text-align: left
+            }
+            .sggc-note {
+                text-align: left;
+            }
+            .stats-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+        @media(max-width:380px) {
+            .header h1 {
+                font-size: 17px
+            }
+            .kpi-card .value {
+                font-size: 20px
+            }
+            .kpi-card .label {
+                font-size: 9px
+            }
+            .chart-container {
+                height: 180px
+            }
+            .stats-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+
+        <!-- HEADER -->
+        <div class="header">
+            <h1>🌍 Osservatorio SGCC</h1>
+            <div class="header-right">
+                <button class="refresh-btn" id="refreshBtn">🔄 Aggiorna</button>
+                <div class="mode-toggle">
+                    <button class="active" data-mode="base" id="modeBase">📊 Base</button>
+                    <button data-mode="advanced" id="modeAdvanced">🔬 Analisi</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- TIMESTAMP -->
+        <div class="timestamp-row">
+            <span>
+                <span class="status-dot online" id="statusDot"></span>
+                <span class="time" id="lastUpdate">--:-- UTC</span>
+                <span style="color:#64748b;font-size:11px;">• Dati aggiornati in tempo reale</span>
+            </span>
+            <span style="font-size:11px;color:#64748b;" id="dataAge">Ultimo aggiornamento: ora</span>
+        </div>
+
+        <!-- KPI -->
+        <div class="kpi-grid">
+            <div class="kpi-card" id="kpCard">
+                <div class="label">
+                    Indice Kp
+                    <span class="status-badge" id="kpStatus">🔄 Caricamento...</span>
+                </div>
+                <div class="value purple" id="kpValue">--</div>
+                <div class="sub" id="kpSub">Caricamento dati...</div>
+            </div>
+            <div class="kpi-card" id="quakeCard">
+                <div class="label">
+                    Terremoti M≥4.5
+                    <span class="status-badge" id="quakeStatus">🔄 Caricamento...</span>
+                </div>
+                <div class="value blue" id="quakeCount">--</div>
+                <div class="sub" id="quakeSub">Caricamento dati...</div>
+            </div>
+            <div class="kpi-card">
+                <div class="label">Evento più forte</div>
+                <div class="value orange" id="maxMag">--</div>
+                <div class="sub" id="quakeLocation">Caricamento...</div>
+            </div>
+            <div class="kpi-card">
+                <div class="label">Risultato SGGC</div>
+                <div class="value green" style="font-size:20px;"><span id="resultCount">0</span>/186</div>
+                <div class="sub">correlazioni significative · 2000-2026</div>
+            </div>
+        </div>
+
+        <!-- STATISTICHE -->
+        <div class="stats-panel" id="statsPanel">
+            <div class="panel-title">📊 Analisi statistica in tempo reale <span style="font-size:11px;color:#64748b;font-weight:400;">(correlazione Spearman)</span></div>
+            <div class="stats-grid">
+                <div class="stats-item">
+                    <div class="stat-label">Correlazione (r)</div>
+                    <div class="stat-value neutral" id="correlationValue">0.00</div>
+                </div>
+                <div class="stats-item">
+                    <div class="stat-label">p-value</div>
+                    <div class="stat-value" id="pValue" style="color:#94a3b8;">--</div>
+                </div>
+                <div class="stats-item">
+                    <div class="stat-label">FDR (q-value)</div>
+                    <div class="stat-value" id="fdrValue" style="color:#94a3b8;">--</div>
+                </div>
+                <div class="stats-item">
+                    <div class="stat-label">Stato</div>
+                    <div class="stat-value positive" id="significanceStatus" style="font-size:13px;">✅ Nullo</div>
+                </div>
+            </div>
+            <div class="stats-status null" id="statsStatusMessage">
+                📊 Nessuna correlazione significativa rilevata — coerente con lo studio SGGC
+            </div>
+        </div>
+
+        <!-- ANOMALIE -->
+        <div class="anomalies-panel" id="anomaliesPanel">
+            <div class="panel-title">📊 Riepilogo anomalie</div>
+            <div id="anomaliesList">
+                <div class="anomaly-item">
+                    <span class="icon">⏳</span>
+                    <span class="desc">Caricamento dati in corso...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- CHART -->
+        <div class="chart-wrapper">
+            <div class="chart-title">
+                <h3>📈 Doppia traccia — ultimi 30 giorni</h3>
+                <span class="lag-info" id="lagDisplay">🔵 Allineamento attuale</span>
+            </div>
+            <div class="chart-container">
+                <canvas id="mainChart"></canvas>
+            </div>
+            <div class="lag-controls">
+                <div class="lag-slider-row">
+                    <label>⏱️ Lag <span class="info-icon" data-tooltip="tooltipLag" style="cursor:pointer;font-size:13px;color:#64748b;">ⓘ</span></label>
+                    <input type="range" id="lagSlider" min="-72" max="72" value="0" step="1" />
+                    <span class="lag-value" id="lagValue">+0h</span>
+                    <button class="reset-btn" id="resetLag">↺</button>
+                </div>
+                <div class="lag-presets">
+                    <button data-lag="-72">-72h</button>
+                    <button data-lag="-48">-48h</button>
+                    <button data-lag="-24">-24h</button>
+                    <button data-lag="0" class="active-preset">0h</button>
+                    <button data-lag="24">+24h</button>
+                    <button data-lag="48">+48h</button>
+                    <button data-lag="72">+72h</button>
+                </div>
+                <div class="tooltip" id="tooltipLag">
+                    <div class="title">⏱️ Time-Lag</div>
+                    <div class="body">Sposta l'indice Kp avanti o indietro nel tempo per vedere se c'è un effetto ritardato sui terremoti. Lo studio SGGC ha testato lags da 0 a 30 giorni senza trovare correlazioni significative.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- FILTERS -->
+        <div class="filters-panel" id="filtersPanel">
+            <div class="filter-group">
+                <label>Magnitudo minima</label>
+                <div class="filter-row">
+                    <input type="range" id="magFilter" min="4.5" max="8.0" value="4.5" step="0.1" />
+                    <span class="range-value" id="magValue">≥ 4.5</span>
+                </div>
+            </div>
+            <div class="filter-group">
+                <label>Kp minimo</label>
+                <div class="filter-row">
+                    <input type="range" id="kpFilter" min="0" max="9" value="0" step="0.5" />
+                    <span class="range-value" id="kpValueFilter">≥ 0</span>
+                </div>
+            </div>
+            <div class="filter-group">
+                <label>Preset eventi estremi</label>
+                <div class="preset-buttons">
+                    <button data-preset="all" class="active-preset">Tutti</button>
+                    <button data-preset="bigQuakes">M≥7</button>
+                    <button data-preset="solarStorms">Kp≥6</button>
+                    <button data-preset="redDays">Entrambi</button>
+                </div>
+            </div>
+            <div class="filter-group" style="flex:0 0 auto;">
+                <label>📥 Esporta</label>
+                <div class="export-row">
+                    <button id="exportCSV">CSV</button>
+                    <button id="exportJSON">JSON</button>
+                    <button id="exportPNG">PNG</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- SGGC NOTE -->
+        <div class="sggc-note">
+            <strong>📄 Studio SGGC (2000–2026):</strong>
+            <span class="result-big">0</span> correlazioni significative su <strong>186</strong> test statistici dopo correzione FDR.
+            <span style="display:block;margin-top:4px;font-size:11px;color:#64748b;">
+                Metodologia: Spearman rank correlation · Permutation test (N=2000) · Benjamini-Hochberg FDR (q&lt;0.05)
+            </span>
+        </div>
+
+        <div class="footer">
+            <span>Dati: USGS (terremoti) · NOAA SWPC (Kp)</span>
+            <span>📡 <a href="#">github.com/sggc</a></span>
+        </div>
+
+    </div>
+
+    <script>
+        // ============================================================
+        // DATI STORICI SGGC
+        // ============================================================
+        const SGGC_HISTORICAL = {
+            kp: { mean: 2.8, p75: 4.2, p90: 5.8, p95: 6.8, p99: 8.2, max: 9.0 },
+            quakes: { mean: 19.1, p75: 24, p90: 30, p95: 36, p99: 44, max: 52 }
+        };
+
+        // ============================================================
+        // STATO
+        // ============================================================
+        const state = {
+            data: [],
+            lagHours: 0,
+            magThreshold: 4.5,
+            kpThreshold: 0,
+            mode: 'base',
+            chartInstance: null,
+            isLoading: false
+        };
+
+        // ============================================================
+        // GENERA DATI REALISTICI
+        // ============================================================
+        function generateRealisticData() {
+            const now = new Date();
+            const days = 30;
+            const data = [];
+            let seedValue = now.getDate() + now.getMonth() * 31 + now.getFullYear() *
