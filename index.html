@@ -1480,21 +1480,23 @@
         }
 
         function updateTimestamp() {
-            const now = new Date();
-            document.getElementById('lastUpdate').textContent =
-                now.toUTCString().slice(17, 22) + ' UTC';
+    const now = new Date();
 
-            const hours = now.getHours();
-            const minutes = now.getMinutes();
-            const day = now.getDate();
-            const month = now.toLocaleString('it-IT', { month: 'long' });
-            const year = now.getFullYear();
+    // 1. Formato per la scritta a sinistra (es. "15:11 UTC")
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const timeString = `${hours}:${minutes} UTC`;
 
-            document.getElementById('dataAge').textContent =
-                `Ultimo aggiornamento: ${day} ${month} ${year} – ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')} UTC`;
+    // 2. Formato per la scritta a destra (es. "5 luglio 2026 – 17:11 UTC")
+    const day = now.getDate();
+    const month = now.toLocaleString('it-IT', { month: 'long' });
+    const year = now.getFullYear();
+    const fullDateString = `${day} ${month} ${year} – ${hours}:${minutes} UTC`;
 
-            document.getElementById('resultCount').textContent = '0';
-        }
+    // 3. Aggiorna gli elementi HTML
+    document.getElementById('lastUpdate').textContent = timeString;
+    document.getElementById('dataAge').textContent = `Ultimo aggiornamento: ${fullDateString}`;
+}
 
         // ============================================================
         // EXPORT
