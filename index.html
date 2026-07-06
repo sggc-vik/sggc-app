@@ -2600,33 +2600,39 @@ function runRegionAnalysis(regionName) {
         document.getElementById('exportJSON').addEventListener('click', exportJSON);
         document.getElementById('exportPNG').addEventListener('click', exportPNG);
 
-        // ============================================================
-        // AVVIO
-        // ============================================================
-        if ('Notification' in window && Notification.permission === 'default') {
-            Notification.requestPermission();
-        }
+         // ============================================================
+// AVVIO
+// ============================================================
+if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+}
 
-        initChart();
-        initMap();
-        loadData();
-        addProUI();
+// === NASCONDI I FILTRI ALL'AVVIO (modalità Base) ===
+const filtersPanel = document.getElementById('filtersPanel');
+if (filtersPanel) {
+    filtersPanel.style.display = 'none';
+}
 
-        // Forza visibilità filtri se la modalità è avanzata
-        if (state.mode === 'advanced') {
-            document.getElementById('filtersPanel').style.display = 'flex';
-        }
+initChart();
+initMap();
+loadData();
+addProUI();
 
-        setInterval(loadData, 120000);
+// Se la modalità è 'advanced' mostra i filtri
+if (state.mode === 'advanced' && filtersPanel) {
+    filtersPanel.style.display = 'flex';
+}
 
-        console.log('🌍 Osservatorio SGGC — Monitoraggio Anomalie');
-        console.log('📡 Multi-proxy attivo: 3 tentativi per ogni API');
-        console.log('⚠️ Fallback automatico a dati simulati in caso di errore');
-        console.log('📱 Ottimizzata per touch con rilevamento anomalie in tempo reale');
-        console.log('🔔 Notifiche attive per anomalie critiche');
-        console.log('📈 Analisi statistica: correlazione Spearman + FDR');
-        console.log('⭐ Versione Pro: funzionalità avanzate disponibili');
-        console.log('🗺️ Mappa terremoti attiva');
+setInterval(loadData, 120000);
+
+console.log('🌍 Osservatorio SGGC — Monitoraggio Anomalie');
+console.log('📡 Multi-proxy attivo: 3 tentativi per ogni API');
+console.log('⚠️ Fallback automatico a dati simulati in caso di errore');
+console.log('📱 Ottimizzata per touch con rilevamento anomalie in tempo reale');
+console.log('🔔 Notifiche attive per anomalie critiche');
+console.log('📈 Analisi statistica: correlazione Spearman + FDR');
+console.log('⭐ Versione Pro: funzionalità avanzate disponibili');
+console.log('🗺️ Mappa terremoti attiva');
     </script>
 </body>
 </html>
