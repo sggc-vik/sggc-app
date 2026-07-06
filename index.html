@@ -1369,7 +1369,7 @@
             });
         }
 
-         function updateChartData() {
+          function updateChartData() {
     if (!state.chartInstance) return;
     const filtered = getFilteredData();
     
@@ -1381,13 +1381,13 @@
         return;
     }
     
-    // Mostra le date originali (dei terremoti)
+    // Le date sull'asse X sono quelle originali (dei terremoti)
     const labels = filtered.map(d => d.date.toLocaleDateString('it-IT', { day: '2-digit', month: 'short' }));
     
-    // Kp shiftato (se il lag è attivo, i valori sono già shiftati)
-    const kpData = filtered.map(d => d.kp !== undefined ? d.kp : 0);
+    // Kp (già shiftato da getFilteredData)
+    const kpData = filtered.map(d => d.kp);
     
-    // Terremoti (rimangono invariati)
+    // Terremoti (invariati)
     const quakeData = filtered.map(d => d.quakes);
     
     state.chartInstance.data.labels = labels;
@@ -1396,7 +1396,8 @@
     state.chartInstance.update();
 }
 
-         function getFilteredData() {
+          function getFilteredData() {
+    // Filtra i dati per magnitudo e Kp
     let filtered = state.data.filter(d =>
         d.maxMag >= state.magThreshold &&
         d.kp >= state.kpThreshold
@@ -1409,7 +1410,7 @@
         return filtered.map(d => ({ ...d }));
     }
     
-    // Crea un dizionario Kp per data per lookup veloce
+    // Costruisci un dizionario Kp per data
     const kpByDate = {};
     filtered.forEach(d => {
         const key = d.date.toISOString().slice(0, 10);
@@ -1418,30 +1419,31 @@
     
     const lagMilliseconds = state.lagHours * 3600000;
     
-    // Costruisci i dati shiftati
+    // Crea i dati shiftati
     const result = filtered.map(d => {
+        // Data originale (quella dei terremoti) - rimane invariata
         const originalDate = d.date;
+        
+        // Data shiftata per cercare il Kp
         const shiftedDate = new Date(originalDate.getTime() + lagMilliseconds);
         const shiftedKey = shiftedDate.toISOString().slice(0, 10);
         
-        // Cerca il Kp corrispondente alla data shiftata
-        const shiftedKp = kpByDate[shiftedKey] !== undefined ? kpByDate[shiftedKey] : null;
+        // Cerca il Kp alla data shiftata
+        let shiftedKp = 0;
+        if (kpByDate[shiftedKey] !== undefined) {
+            shiftedKp = kpByDate[shiftedKey];
+        }
         
         return {
-            date: originalDate,
-            kp: shiftedKp !== null ? shiftedKp : 0,
-            quakes: d.quakes,
-            maxMag: d.maxMag,
-            // Per debug
-            kpOriginal: d.kp,
-            shiftedDate: shiftedDate,
-            lagHours: state.lagHours
+            date: originalDate,      // Data originale (per le etichette)
+            kp: shiftedKp,           // Kp shiftato nel tempo
+            quakes: d.quakes,        // Terremoti invariati
+            maxMag: d.maxMag         // Magnitudo invariata
         };
     });
     
     return result;
 }
-
         // ============================================================
         // MAPPA
         // ============================================================
