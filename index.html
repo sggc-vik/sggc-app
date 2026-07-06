@@ -1422,42 +1422,116 @@
         }
 
         function updateMap() {
-            if (!mapInstance) {
-                initMap();
-                setTimeout(updateMap, 500);
-                return;
-            }
+    if (!mapInstance) {
+        initMap();
+        setTimeout(updateMap, 500);
+        return;
+    }
 
-            if (!mapMarkersLayer) {
-                mapMarkersLayer = L.layerGroup().addTo(mapInstance);
-            }
+    if (!mapMarkersLayer) {
+        mapMarkersLayer = L.layerGroup().addTo(mapInstance);
+    }
 
-            mapMarkersLayer.clearLayers();
+    mapMarkersLayer.clearLayers();
 
-            const allEvents = [];
-            state.data.forEach(day => {
-                if (day.events && day.events.length > 0) {
-                    day.events.forEach(e => {
-                        if (e.lat && e.lon) {
-                            allEvents.push({
-                                lat: e.lat,
-                                lon: e.lon,
-                                mag: e.mag || 0,
-                                time: e.time || day.date
-                            });
-                        }
+    const allEvents = [];
+    state.data.forEach(day => {
+        if (day.events && day.events.length > 0) {
+            day.events.forEach(e => {
+                if (e.lat && e.lon) {
+                    allEvents.push({
+                        lat: e.lat,
+                        lon: e.lon,
+                        mag: e.mag || 0,
+                        time: e.time || day.date
                     });
                 }
             });
+        }
+    });
 
-            if (allEvents.length === 0) {
-                document.getElementById('mapCount').textContent = 'Nessun terremoto da mostrare';
-                return;
-            }
+    if (allEvents.length === 0) {
+        document.getElementById('mapCount').textContent = 'Nessun terremoto da mostrare';
+        return;
+    }
 
-            document.getElementById('mapCount').textContent = `${allEvents.length} terremoti visualizzati`;
+    document.getElementById('mapCount').textContent = `${allEvents.length} terremoti visualizzati`;
 
-            allEvents.sort((a, b) => b.mag - a.mag);
+    allEvents.sort((a, b) => b.mag - a.mag);
+
+    function getColor(mag) {
+        if (mag >= 7.0) return '#ef4444';
+        if (mag >= 6.0) return '#fb923c';
+        if (mag >= 5.0) return '#facc15';
+        return '#4ade80';
+    }
+
+    function getRadius(mag) {
+        return Math.max(4, Math.min(18, 4 + (mag - 4.5) * 6));
+    }
+
+    let bounds = L.latLngBounds();
+
+    allEvents.forEach(e => {
+        const color = getColor(e.mag);
+        const radius = getRadius(e.mag);
+
+        // === CERCHIO PRINCIPALE (VISIBILE) ===
+        const circle = L.circleMarker([e.lat, e.lon], {
+            radius: radius,
+            fillColor: color,
+            color: '#0b0e14',
+            weight: 1,
+            opacity: 0.8,
+            fillOpacity: 0.7,
+            bubblingMouseEvents: false, // ← Migliora la reattività al tocco
+            interactive: true
+        });
+
+        const dateStr = e.time ? new Date(e.time).toLocaleDateString('it-IT') : 'Data sconosciuta';
+        const magStr = e.mag ? e.mag.toFixed(1) : 'N/A';
+
+        // Popup per il cerchio principale
+        const popupContent = `
+            <div style="font-size:13px;">
+                <strong style="color:#e8edf5;">M${magStr}</strong>
+                <span style="color:#94a3b8; font-size:11px;"> · ${dateStr}</span>
+                <br>
+                <span style="color:#94a3b8; font-size:11px;">
+                    Lat: ${e.lat.toFixed(2)}° · Lon: ${e.lon.toFixed(2)}°
+                </span>
+            </div>
+        `;
+        circle.bindPopup(popupContent);
+
+        // === CERCHIO "TAPPO" INVISIBILE (per facilitare il tocco su mobile) ===
+        const hitRadius = Math.max(radius * 2.5, 12); // Almeno 12px per essere preso bene
+        const hitCircle = L.circleMarker([e.lat, e.lon], {
+            radius: hitRadius,
+            color: 'transparent',
+            fillColor: 'transparent',
+            weight: 0,
+            interactive: true,
+            bubblingMouseEvents: false
+        });
+        // Anche il cerchio invisibile ha lo stesso popup
+        hitCircle.bindPopup(popupContent);
+
+        // Aggiungi entrambi allo strato
+        mapMarkersLayer.addLayer(circle);
+        mapMarkersLayer.addLayer(hitCircle);
+
+        bounds.extend([e.lat, e.lon]);
+    });
+
+    if (allEvents.length > 0) {
+        mapInstance.fitBounds(bounds, {
+            padding: [30, 30],
+            maxZoom: 8
+        });
+    }
+}
+         
 
             function getColor(mag) {
                 if (mag >= 7.0) return '#ef4444';
