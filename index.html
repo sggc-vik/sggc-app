@@ -1079,101 +1079,140 @@
             throw new Error('Nessun proxy funzionante');
         }
 
-        async function fetchRealData() {
+          async function fetchRealData() {
+    try {
+        console.log('📡 Caricamento dati reali...');
+
+        // 1. USGS Earthquakes
+        const quakeData = await fetchWithProxy(
+            'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_month.geojson'
+        );
+
+        // 2. NOAA Kp Index - PROVA PRIMA IL FEED 30 GIORNI
+        let kpRaw = null;
+        let kpFeedUsed = '';
+        
+        try {
+            // Tentativo con feed 30 giorni
+            kpRaw = await fetchWithProxy(
+                'https://services.swpc.noaa.gov/json/noaa-planetary-k-index-30-day.json'
+            );
+            kpFeedUsed = '30-day';
+            console.log('✅ Feed Kp 30 giorni caricato');
+        } catch (e) {
+            console.log('⚠️ Feed 30 giorni fallito, provo feed standard...');
             try {
-                console.log('📡 Caricamento dati reali...');
-
-                const quakeData = await fetchWithProxy(
-                    'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_month.geojson'
+                // Fallback al feed standard
+                kpRaw = await fetchWithProxy(
+                    'https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json'
                 );
-
-                 const kpRes = await fetchWithProxy(
-    'https://services.swpc.noaa.gov/json/noaa-planetary-k-index-30-day.json'
-);
-
-                if (!quakeData.features || quakeData.features.length === 0) {
-                    throw new Error('USGS: nessun terremoto trovato');
-                }
-                if (!kpRaw || kpRaw.length < 2) {
-                    throw new Error('NOAA: dati Kp non validi');
-                }
-
-                // Elabora terremoti - SALVA LE COORDINATE
-                const quakeEvents = quakeData.features || [];
-                const quakeByDay = {};
-                quakeEvents.forEach(f => {
-                    if (!f.properties) return;
-                    const d = new Date(f.properties.time);
-                    const key = d.toISOString().slice(0, 10);
-                    if (!quakeByDay[key]) {
-                        quakeByDay[key] = { count: 0, maxMag: 0, events: [] };
-                    }
-                    quakeByDay[key].count++;
-                    const mag = f.properties.mag || 0;
-                    if (mag > quakeByDay[key].maxMag) {
-                        quakeByDay[key].maxMag = mag;
-                    }
-                    if (f.geometry && f.geometry.coordinates) {
-                        const coords = f.geometry.coordinates;
-                        quakeByDay[key].events.push({
-                            lat: coords[1],
-                            lon: coords[0],
-                            mag: mag,
-                            time: d
-                        });
-                    }
-                });
-
-                // Elabora Kp
-                const kpValues = {};
-                for (let i = 1; i < kpRaw.length; i++) {
-                    const row = kpRaw[i];
-                    if (!row || row.length < 2) continue;
-                    const dateStr = row[0];
-                    const kpVal = parseFloat(row[1]);
-                    if (isNaN(kpVal)) continue;
-                    const date = new Date(dateStr);
-                    const key = date.toISOString().slice(0, 10);
-                    if (!kpValues[key]) {
-                        kpValues[key] = [];
-                    }
-                    kpValues[key].push(kpVal);
-                }
-
-                // Combina i dati
-                const combined = [];
-                const now = new Date();
-                for (let i = 30; i >= 0; i--) {
-                    const d = new Date(now);
-                    d.setDate(d.getDate() - i);
-                    const key = d.toISOString().slice(0, 10);
-                    const kpArray = kpValues[key] || [];
-                    const avgKp = kpArray.length > 0 ?
-                        Math.round(kpArray.reduce((a, b) => a + b, 0) / kpArray.length * 10) / 10 :
-                        0;
-                    const quakeMatch = quakeByDay[key] || { count: 0, maxMag: 0, events: [] };
-                    combined.push({
-                        date: d,
-                        kp: avgKp,
-                        quakes: quakeMatch.count,
-                        maxMag: quakeMatch.maxMag || 0,
-                        events: quakeMatch.events || []
-                    });
-                }
-
-                const hasData = combined.some(d => d.kp > 0 || d.quakes > 0);
-                if (!hasData) {
-                    throw new Error('Nessun dato valido dopo l\'elaborazione');
-                }
-
-                console.log(`✅ Dati reali caricati: ${combined.length} giorni`);
-                return combined;
-
-            } catch (error) {
-                console.warn('⚠️ Errore fetch dati reali:', error.message);
-                return null;
+                kpFeedUsed = 'standard';
+                console.log('✅ Feed Kp standard caricato');
+            } catch (e2) {
+                console.log('⚠️ Entrambi i feed Kp falliti');
+                throw new Error('NOAA: nessun feed Kp disponibile');
             }
         }
+
+        // 3. Verifica dati
+        if (!quakeData.features || quakeData.features.length === 0) {
+            throw new Error('USGS: nessun terremoto trovato');
+        }
+        if (!kpRaw || kpRaw.length < 2) {
+            throw new Error('NOAA: dati Kp non validi');
+        }
+
+        // ... il resto del codice rimane uguale ...
+        // (elabora terremoti, elabora Kp, combina i dati)
+        
+        // 4. Elabora terremoti - SALVA LE COORDINATE
+        const quakeEvents = quakeData.features || [];
+        const quakeByDay = {};
+        quakeEvents.forEach(f => {
+            if (!f.properties) return;
+            const d = new Date(f.properties.time);
+            const key = d.toISOString().slice(0, 10);
+            if (!quakeByDay[key]) {
+                quakeByDay[key] = { count: 0, maxMag: 0, events: [] };
+            }
+            quakeByDay[key].count++;
+            const mag = f.properties.mag || 0;
+            if (mag > quakeByDay[key].maxMag) {
+                quakeByDay[key].maxMag = mag;
+            }
+            if (f.geometry && f.geometry.coordinates) {
+                const coords = f.geometry.coordinates;
+                quakeByDay[key].events.push({
+                    lat: coords[1],
+                    lon: coords[0],
+                    mag: mag,
+                    time: d
+                });
+            }
+        });
+
+        // 5. Elabora Kp (supporta entrambi i formati di feed)
+        const kpValues = {};
+        for (let i = 1; i < kpRaw.length; i++) {
+            const row = kpRaw[i];
+            if (!row || row.length < 2) continue;
+            
+            // Il feed 30-day ha formato diverso: [{date, kp}]
+            let dateStr, kpVal;
+            if (row.date) {
+                // Formato 30-day
+                dateStr = row.date;
+                kpVal = parseFloat(row.kp);
+            } else {
+                // Formato standard
+                dateStr = row[0];
+                kpVal = parseFloat(row[1]);
+            }
+            
+            if (isNaN(kpVal)) continue;
+            const date = new Date(dateStr);
+            const key = date.toISOString().slice(0, 10);
+            if (!kpValues[key]) {
+                kpValues[key] = [];
+            }
+            kpValues[key].push(kpVal);
+        }
+
+        // 6. Combina i dati (invariato)
+        const combined = [];
+        const now = new Date();
+        for (let i = 30; i >= 0; i--) {
+            const d = new Date(now);
+            d.setDate(d.getDate() - i);
+            const key = d.toISOString().slice(0, 10);
+            const kpArray = kpValues[key] || [];
+            const avgKp = kpArray.length > 0 ?
+                Math.round(kpArray.reduce((a, b) => a + b, 0) / kpArray.length * 10) / 10 :
+                0;
+            const quakeMatch = quakeByDay[key] || { count: 0, maxMag: 0, events: [] };
+            combined.push({
+                date: d,
+                kp: avgKp,
+                quakes: quakeMatch.count,
+                maxMag: quakeMatch.maxMag || 0,
+                events: quakeMatch.events || []
+            });
+        }
+
+        // 7. Verifica dati validi
+        const hasData = combined.some(d => d.kp > 0 || d.quakes > 0);
+        if (!hasData) {
+            throw new Error('Nessun dato valido dopo l\'elaborazione');
+        }
+
+        console.log(`✅ Dati reali caricati: ${combined.length} giorni (feed Kp: ${kpFeedUsed})`);
+        return combined;
+
+    } catch (error) {
+        console.warn('⚠️ Errore fetch dati reali:', error.message);
+        return null;
+    }
+}
 
         // ============================================================
         // CARICA DATI
