@@ -2020,28 +2020,100 @@ function runMagnitudeUI() {
     showProResult('Analisi per magnitudo', combinedResult || result7_0);
 }
 
-function runRegionUI() {
+ function runRegionUI() {
+    if (!isProUser()) {
+        showProLock('Analisi per regione');
+        return;
+    }
+
     const regions = ['Japan', 'Chile', 'Alaska', 'Indonesia', 'California'];
-    const results = {};
-    let firstResult = null;
-    regions.forEach(r => {
-        const res = runRegionAnalysis(r);
+    const results = [];
+    let hasData = false;
+
+    regions.forEach(regionName => {
+        const res = runRegionAnalysis(regionName);
         if (res) {
-            results[r] = res.r.toFixed(3);
-            if (!firstResult) firstResult = res;
+            hasData = true;
+            results.push({
+                region: regionName,
+                r: res.r,
+                p: res.p,
+                fdr: res.fdr,
+                events: res.events
+            });
         }
     });
-    if (firstResult) {
-        showProResult('Correlazione per regione', {
-            region: 'Varie',
-            r: firstResult.r,
-            p: firstResult.p,
-            fdr: firstResult.fdr,
-            interpretations: firstResult.interpretations
-        });
-    } else {
+
+    if (!hasData) {
         showProResult('Correlazione per regione', null);
+        return;
     }
+
+    // Costruisce un risultato con tutte le regioni
+    const container = document.getElementById('proResults');
+    if (!container) return;
+
+    let html = `<div style="font-weight:600; color:#e8edf5; margin-bottom:8px; font-size:14px;">🌍 Correlazione per regione</div>`;
+
+    // Tabella con tutte le regioni
+    html += `<div style="background:#0d1520; border-radius:8px; padding:10px; margin-bottom:8px; font-size:12px; overflow-x:auto;">`;
+    html += `<div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr; gap:4px; font-weight:600; color:#94a3b8; border-bottom:1px solid #1e2a3a; padding-bottom:4px; margin-bottom:4px;">
+        <div>Regione</div>
+        <div>r</div>
+        <div>p</div>
+        <div>FDR</div>
+        <div>Eventi</div>
+    </div>`;
+
+    results.forEach(res => {
+        const rColor = Math.abs(res.r) > 0.5 ? '#4ade80' : Math.abs(res.r) > 0.3 ? '#facc15' : '#94a3b8';
+        const pColor = res.p < 0.05 ? '#4ade80' : '#94a3b8';
+        const fdrColor = res.fdr < 0.05 ? '#4ade80' : '#94a3b8';
+        html += `<div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr; gap:4px; padding:4px 0; border-bottom:1px solid #1a2535;">
+            <div style="color:#e8edf5;">${res.region}</div>
+            <div style="color:${rColor};">${res.r.toFixed(3)}</div>
+            <div style="color:${pColor};">${res.p.toFixed(4)}</div>
+            <div style="color:${fdrColor};">${res.fdr.toFixed(4)}</div>
+            <div style="color:#94a3b8;">${res.events}</div>
+        </div>`;
+    });
+    html += `</div>`;
+
+    // Legenda colori
+    html += `<div style="display:flex; gap:12px; flex-wrap:wrap; font-size:10px; color:#64748b; margin-bottom:8px;">
+        <span>🟢 Forte</span>
+        <span>🟡 Moderata</span>
+        <span>⚪ Debole/Nulla</span>
+    </div>`;
+
+    // Interpretazione generale
+    const avgR = results.reduce((sum, r) => sum + r.r, 0) / results.length;
+    let summary = '';
+    if (Math.abs(avgR) < 0.1) {
+        summary = '⚖️ In media, nessuna correlazione significativa tra Kp e terremoti nelle regioni analizzate.';
+    } else if (avgR > 0) {
+        summary = `📈 In media, correlazione positiva debole (r medio = ${avgR.toFixed(3)}) tra Kp e terremoti.`;
+    } else {
+        summary = `📉 In media, correlazione negativa debole (r medio = ${avgR.toFixed(3)}) tra Kp e terremoti.`;
+    }
+
+    // Identifica la regione con la correlazione più forte
+    let maxR = 0;
+    let maxRegion = '';
+    results.forEach(res => {
+        if (Math.abs(res.r) > Math.abs(maxR)) {
+            maxR = res.r;
+            maxRegion = res.region;
+        }
+    });
+    if (maxRegion && Math.abs(maxR) > 0.3) {
+        summary += ` La correlazione più evidente si osserva in ${maxRegion} (r = ${maxR.toFixed(3)}).`;
+    }
+
+    html += `<div style="background:#0d1520; border-radius:8px; padding:10px; font-size:12px; color:#b0c4de; border-left: 3px solid #60a5fa;">${summary}</div>`;
+
+    container.innerHTML = html;
+    container.style.display = 'block';
 }
 
 function runStormUI() {
