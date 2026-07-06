@@ -4,8 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes" />
     <title>Osservatorio SGGC</title>
+    
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js">
     </script>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
+    </script>
+    
     <style>
         * {
             margin: 0;
@@ -444,17 +453,14 @@
             font-size: 11px;
         }
         .filters-panel {
-            display: none;
             background: #111a24;
             border: 1px solid #1e2a3a;
             border-radius: 12px;
             padding: 16px;
             margin: 14px 0;
+            display: flex;
             flex-direction: column;
             gap: 16px;
-        }
-        .filters-panel.visible {
-            display: flex;
         }
         .filter-group {
             display: flex;
@@ -529,6 +535,53 @@
         .export-row button:active {
             transform: scale(.95);
             background: #2d3a4a;
+        }
+        .map-wrapper {
+            background: #111a24;
+            border: 1px solid #1e2a3a;
+            border-radius: 12px;
+            padding: 14px;
+            margin: 14px 0;
+        }
+        .map-wrapper .map-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .map-wrapper .map-title h3 {
+            font-size: 14px;
+            font-weight: 500;
+        }
+        #earthquakeMap {
+            height: 400px;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #1e2a3a;
+            background: #0b0e14;
+        }
+        .leaflet-popup-content-wrapper {
+            background: #1a2535 !important;
+            color: #e8edf5 !important;
+            border-radius: 8px !important;
+            border: 1px solid #2d3a4a !important;
+        }
+        .leaflet-popup-tip {
+            background: #1a2535 !important;
+        }
+        .leaflet-popup-content {
+            color: #e8edf5 !important;
+            font-size: 12px !important;
+        }
+        .leaflet-control-zoom a {
+            background: #1a2535 !important;
+            color: #e8edf5 !important;
+            border-color: #2d3a4a !important;
+        }
+        .leaflet-tile-pane {
+            filter: invert(1) hue-rotate(180deg) brightness(0.8);
         }
         .sggc-note {
             margin-top: 14px;
@@ -618,12 +671,16 @@
             .stats-grid {
                 grid-template-columns: 1fr 1fr;
             }
+            #earthquakeMap {
+                height: 280px;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
 
+        <!-- HEADER -->
         <div class="header">
             <h1>🌍 Osservatorio SGGC</h1>
             <div class="header-right">
@@ -635,6 +692,7 @@
             </div>
         </div>
 
+        <!-- TIMESTAMP -->
         <div class="timestamp-row">
             <span>
                 <span class="status-dot online" id="statusDot"></span>
@@ -645,6 +703,7 @@
             <span style="font-size:11px;color:#64748b;" id="dataAge">Ultimo aggiornamento: ora</span>
         </div>
 
+        <!-- KPI -->
         <div class="kpi-grid">
             <div class="kpi-card" id="kpCard">
                 <div class="label">
@@ -674,6 +733,7 @@
             </div>
         </div>
 
+        <!-- STATISTICHE -->
         <div class="stats-panel" id="statsPanel">
             <div class="panel-title">📊 Analisi statistica in tempo reale <span style="font-size:11px;color:#64748b;font-weight:400;">(correlazione Spearman)</span></div>
             <div class="stats-grid">
@@ -699,6 +759,7 @@
             </div>
         </div>
 
+        <!-- ANOMALIE -->
         <div class="anomalies-panel" id="anomaliesPanel">
             <div class="panel-title">📊 Riepilogo anomalie</div>
             <div id="anomaliesList">
@@ -708,67 +769,8 @@
                 </div>
             </div>
         </div>
-<!-- PANNELLO FILTRI (da aggiungere) -->
-<div class="filters-panel" id="filtersPanel">
-    <div class="filter-group">
-        <label>Magnitudo minima</label>
-        <div class="filter-row">
-            <input type="range" id="magFilter" min="4.5" max="8.0" value="4.5" step="0.1" />
-            <span class="range-value" id="magValue">≥ 4.5</span>
-        </div>
-    </div>
-    <div class="filter-group">
-        <label>Kp minimo</label>
-        <div class="filter-row">
-            <input type="range" id="kpFilter" min="0" max="9" value="0" step="0.5" />
-            <span class="range-value" id="kpValueFilter">≥ 0</span>
-        </div>
-    </div>
-    <div class="filter-group">
-        <label>Preset eventi estremi</label>
-        <div class="preset-buttons">
-            <button data-preset="all" class="active-preset">Tutti</button>
-            <button data-preset="bigQuakes">M≥7</button>
-            <button data-preset="solarStorms">Kp≥6</button>
-            <button data-preset="redDays">Entrambi</button>
-        </div>
-    </div>
-    <div class="filter-group" style="flex:0 0 auto;">
-        <label>📥 Esporta</label>
-        <div class="export-row">
-            <button id="exportCSV">CSV</button>
-            <button id="exportJSON">JSON</button>
-            <button id="exportPNG">PNG</button>
-        </div>
-    </div>
-</div>
-        <div class="chart-wrapper">
-            <div class="chart-title">
-                <h3>📈 Doppia traccia — ultimi 30 giorni</h3>
-                <span class="lag-info" id="lagDisplay">🔵 Allineamento attuale</span>
-            </div>
-            <div class="chart-container">
-                <canvas id="mainChart"></canvas>
-            </div>
-            <div class="lag-controls">
-                <div class="lag-slider-row">
-                    <label>⏱️ Lag</label>
-                    <input type="range" id="lagSlider" min="-72" max="72" value="0" step="1" />
-                    <span class="lag-value" id="lagValue">+0h</span>
-                    <button class="reset-btn" id="resetLag">↺</button>
-                </div>
-                <div class="lag-presets">
-                    <button data-lag="-72">-72h</button>
-                    <button data-lag="-48">-48h</button>
-                    <button data-lag="-24">-24h</button>
-                    <button data-lag="0" class="active-preset">0h</button>
-                    <button data-lag="24">+24h</button>
-                    <button data-lag="48">+48h</button>
-                    <button data-lag="72">+72h</button>
-                </div>
-            </div>
-        </div>
 
+        <!-- FILTRI -->
         <div class="filters-panel" id="filtersPanel">
             <div class="filter-group">
                 <label>Magnitudo minima</label>
@@ -803,6 +805,51 @@
             </div>
         </div>
 
+        <!-- GRAFICO -->
+        <div class="chart-wrapper">
+            <div class="chart-title">
+                <h3>📈 Doppia traccia — ultimi 30 giorni</h3>
+                <span class="lag-info" id="lagDisplay">🔵 Allineamento attuale</span>
+            </div>
+            <div class="chart-container">
+                <canvas id="mainChart"></canvas>
+            </div>
+            <div class="lag-controls">
+                <div class="lag-slider-row">
+                    <label>⏱️ Lag</label>
+                    <input type="range" id="lagSlider" min="-72" max="72" value="0" step="1" />
+                    <span class="lag-value" id="lagValue">+0h</span>
+                    <button class="reset-btn" id="resetLag">↺</button>
+                </div>
+                <div class="lag-presets">
+                    <button data-lag="-72">-72h</button>
+                    <button data-lag="-48">-48h</button>
+                    <button data-lag="-24">-24h</button>
+                    <button data-lag="0" class="active-preset">0h</button>
+                    <button data-lag="24">+24h</button>
+                    <button data-lag="48">+48h</button>
+                    <button data-lag="72">+72h</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- MAPPA -->
+        <div class="map-wrapper">
+            <div class="map-title">
+                <h3>🌍 Mappa terremoti M≥4.5 (ultimi 30 giorni)</h3>
+                <span style="font-size:11px; color:#64748b;" id="mapCount">Caricamento...</span>
+            </div>
+            <div id="earthquakeMap"></div>
+            <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:8px; font-size:11px; color:#94a3b8;">
+                <span>🔴 Magnitudo ≥ 7.0</span>
+                <span>🟠 Magnitudo 6.0 - 6.9</span>
+                <span>🟡 Magnitudo 5.0 - 5.9</span>
+                <span>🟢 Magnitudo 4.5 - 4.9</span>
+                <span style="color:#64748b;">• Clicca su un punto per i dettagli</span>
+            </div>
+        </div>
+
+        <!-- SGGC NOTE -->
         <div class="sggc-note">
             <strong>📄 Studio SGGC (2000–2026):</strong>
             <span class="result-big">0</span> correlazioni significative su <strong>186</strong> test statistici dopo correzione FDR.
@@ -811,6 +858,7 @@
             </span>
         </div>
 
+        <!-- FOOTER -->
         <div class="footer">
             <span>Dati: USGS (terremoti) · NOAA SWPC (Kp)</span>
             <span>📡 <a href="https://github.com/sggc-vik/sggc-app" target="_blank">github.com/sggc-vik/sggc-app</a></span>
@@ -1004,7 +1052,7 @@
         }
 
         // ============================================================
-        // FETCH DATI REALI - MULTIPROXY (più affidabile)
+        // FETCH DATI REALI
         // ============================================================
         async function fetchWithProxy(url) {
             const proxies = [
@@ -1128,7 +1176,7 @@
         }
 
         // ============================================================
-        // CARICA DATI (con fallback)
+        // CARICA DATI
         // ============================================================
         async function loadData() {
             if (state.isLoading) return;
@@ -1344,6 +1392,126 @@
         }
 
         // ============================================================
+        // MAPPA
+        // ============================================================
+        let mapInstance = null;
+        let mapMarkersLayer = null;
+
+        function initMap() {
+            if (mapInstance) return;
+
+            mapInstance = L.map('earthquakeMap', {
+                center: [20, 0],
+                zoom: 2,
+                zoomControl: true,
+                attributionControl: true
+            });
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(mapInstance);
+
+            mapMarkersLayer = L.layerGroup().addTo(mapInstance);
+
+            setTimeout(() => {
+                if (mapInstance) {
+                    mapInstance.invalidateSize();
+                }
+            }, 500);
+        }
+
+        function updateMap() {
+            if (!mapInstance) {
+                initMap();
+                setTimeout(updateMap, 500);
+                return;
+            }
+
+            if (!mapMarkersLayer) {
+                mapMarkersLayer = L.layerGroup().addTo(mapInstance);
+            }
+
+            mapMarkersLayer.clearLayers();
+
+            const allEvents = [];
+            state.data.forEach(day => {
+                if (day.events && day.events.length > 0) {
+                    day.events.forEach(e => {
+                        if (e.lat && e.lon) {
+                            allEvents.push({
+                                lat: e.lat,
+                                lon: e.lon,
+                                mag: e.mag || 0,
+                                time: e.time || day.date
+                            });
+                        }
+                    });
+                }
+            });
+
+            if (allEvents.length === 0) {
+                document.getElementById('mapCount').textContent = 'Nessun terremoto da mostrare';
+                return;
+            }
+
+            document.getElementById('mapCount').textContent = `${allEvents.length} terremoti visualizzati`;
+
+            allEvents.sort((a, b) => b.mag - a.mag);
+
+            function getColor(mag) {
+                if (mag >= 7.0) return '#ef4444';
+                if (mag >= 6.0) return '#fb923c';
+                if (mag >= 5.0) return '#facc15';
+                return '#4ade80';
+            }
+
+            function getRadius(mag) {
+                return Math.max(4, Math.min(18, 4 + (mag - 4.5) * 6));
+            }
+
+            let bounds = L.latLngBounds();
+
+            allEvents.forEach(e => {
+                const color = getColor(e.mag);
+                const radius = getRadius(e.mag);
+
+                const circle = L.circleMarker([e.lat, e.lon], {
+                    radius: radius,
+                    fillColor: color,
+                    color: '#0b0e14',
+                    weight: 1,
+                    opacity: 0.8,
+                    fillOpacity: 0.7
+                });
+
+                const dateStr = e.time ? new Date(e.time).toLocaleDateString('it-IT') : 'Data sconosciuta';
+                const magStr = e.mag ? e.mag.toFixed(1) : 'N/A';
+
+                circle.bindPopup(`
+                    <div style="font-size:13px;">
+                        <strong style="color:#e8edf5;">M${magStr}</strong>
+                        <span style="color:#94a3b8; font-size:11px;"> · ${dateStr}</span>
+                        <br>
+                        <span style="color:#94a3b8; font-size:11px;">
+                            Lat: ${e.lat.toFixed(2)}° · Lon: ${e.lon.toFixed(2)}°
+                        </span>
+                    </div>
+                `);
+
+                mapMarkersLayer.addLayer(circle);
+                bounds.extend([e.lat, e.lon]);
+            });
+
+            if (allEvents.length > 0) {
+                mapInstance.fitBounds(bounds, {
+                    padding: [30, 30],
+                    maxZoom: 8
+                });
+            }
+        }
+
+        // ============================================================
         // UPDATE ALL
         // ============================================================
         function updateAll() {
@@ -1352,6 +1520,7 @@
             updateStatistics();
             updateChartData();
             updateTimestamp();
+            updateMap();
 
             const lag = state.lagHours;
             document.getElementById('lagDisplay').textContent =
@@ -1535,16 +1704,15 @@
         }
 
         // ============================================================
-        // VERSIONE PRO — FUNZIONALITÀ AVANZATE (CHIARE PER TUTTI)
+        // VERSIONE PRO — FUNZIONALITÀ AVANZATE
         // ============================================================
 
-        const IS_PRO_ENABLED = true; // ← Cambia a false per la versione Free
+        const IS_PRO_ENABLED = true;
 
         function isProUser() {
             return IS_PRO_ENABLED;
         }
 
-        // HELP
         function showStatHelp() {
             alert(
                 '📖 Come leggere i risultati:\n\n' +
@@ -1581,17 +1749,13 @@
                 interpretations.push('⚖️ Nessuna correlazione significativa: Kp e terremoti sembrano indipendenti.');
             }
 
-            if (p === null || isNaN(p)) {
-                // già gestito
-            } else if (p < 0.05) {
+            if (p === null || isNaN(p)) {} else if (p < 0.05) {
                 interpretations.push(`✅ Risultato statisticamente significativo (p = ${p.toFixed(4) < 0.0001 ? '< 0.0001' : p.toFixed(4)}): probabilità bassa che sia casuale.`);
             } else {
                 interpretations.push(`⚠️ Risultato non significativo (p = ${p.toFixed(4)}): potrebbe essere dovuto al caso.`);
             }
 
-            if (fdr === null || isNaN(fdr)) {
-                // già gestito
-            } else if (fdr < 0.05) {
+            if (fdr === null || isNaN(fdr)) {} else if (fdr < 0.05) {
                 interpretations.push(`🔒 Risultato robusto (FDR = ${fdr.toFixed(4)}): supera il controllo per test multipli.`);
             } else {
                 interpretations.push(`⚠️ Risultato da verificare (FDR = ${fdr.toFixed(4)}): potrebbe essere un falso positivo.`);
@@ -1625,7 +1789,7 @@
         }
 
         // ============================================================
-        // 1. ANALISI PER MAGNITUDO
+        // ANALISI PRO
         // ============================================================
         function runMagnitudeAnalysis(threshold) {
             if (!isProUser()) {
@@ -1650,9 +1814,6 @@
             };
         }
 
-        // ============================================================
-        // 2. ANALISI PER REGIONE (CON COORDINATE REALI)
-        // ============================================================
         function getRegionFilter(region) {
             const regions = {
                 'Japan': { lat: [24, 46], lon: [122, 146] },
@@ -1673,7 +1834,6 @@
             const region = getRegionFilter(regionName);
             if (!region) return null;
 
-            // Estrai tutti gli eventi di tutti i giorni
             const allEvents = [];
             state.data.forEach(day => {
                 if (day.events && day.events.length > 0) {
@@ -1698,7 +1858,6 @@
                 };
             }
 
-            // Filtra per regione usando le coordinate reali
             const regionEvents = allEvents.filter(e => {
                 const lat = e.lat;
                 const lon = e.lon;
@@ -1717,7 +1876,6 @@
                 };
             }
 
-            // Raggruppa per giorno
             const dailyData = {};
             regionEvents.forEach(e => {
                 const key = e.date.toISOString().slice(0, 10);
@@ -1745,9 +1903,6 @@
             };
         }
 
-        // ============================================================
-        // 3. SUPERPOSED EPOCH (tempeste)
-        // ============================================================
         function runStormAnalysis(kpThreshold) {
             if (!isProUser()) {
                 showProLock('Analisi tempeste geomagnetiche (Kp≥' + kpThreshold + ')');
@@ -1787,9 +1942,6 @@
             };
         }
 
-        // ============================================================
-        // 4. ENERGIA SISMICA
-        // ============================================================
         function runSeismicEnergyAnalysis() {
             if (!isProUser()) {
                 showProLock('Analisi energia sismica rilasciata');
@@ -1814,9 +1966,6 @@
             };
         }
 
-        // ============================================================
-        // 5. FASI LUNARI (controllo)
-        // ============================================================
         function runLunarSyzygyAnalysis() {
             if (!isProUser()) {
                 showProLock('Analisi fasi lunari (controllo negativo)');
@@ -1848,9 +1997,6 @@
             };
         }
 
-        // ============================================================
-        // 6. PERMUTATION TEST
-        // ============================================================
         function runPermutationTest(nPermutations = 2000) {
             if (!isProUser()) {
                 showProLock('Permutation test (N=' + nPermutations + ')');
@@ -1908,9 +2054,6 @@
             };
         }
 
-        // ============================================================
-        // 7. FDR COMPLETO
-        // ============================================================
         function runFullFDR() {
             if (!isProUser()) {
                 showProLock('Analisi FDR completa (186 test)');
@@ -1958,9 +2101,6 @@
             };
         }
 
-        // ============================================================
-        // FUNZIONI DI SUPPORTO PRO
-        // ============================================================
         function showProLock(featureName) {
             const container = document.getElementById('proLockMessage');
             if (container) {
@@ -2013,9 +2153,6 @@
             }
         }
 
-        // ============================================================
-        // UI WRAPPER PER LE FUNZIONI PRO
-        // ============================================================
         function showProResult(title, result) {
             const container = document.getElementById('proResults');
             if (!container) return;
@@ -2107,8 +2244,10 @@
 
             regions.forEach(regionName => {
                 const res = runRegionAnalysis(regionName);
-                if (res) {
+                if (res && res.events > 0) {
                     hasData = true;
+                    results.push(res);
+                } else if (res) {
                     results.push(res);
                 }
             });
@@ -2158,9 +2297,10 @@
                 <span>⚪ Debole/Nulla</span>
                 <span style="color:#4ade80;">✅ p < 0.05</span>
                 <span style="color:#94a3b8;">⬜ p ≥ 0.05</span>
+                <span style="color:#facc15;">⚠️ FDR > 0.05</span>
             </div>`;
 
-            const validResults = results.filter(r => r.r !== null);
+            const validResults = results.filter(r => r.r !== null && r.events > 0);
             if (validResults.length > 0) {
                 const avgR = validResults.reduce((sum, r) => sum + r.r, 0) / validResults.length;
                 const maxR = validResults.reduce((max, r) => Math.abs(r.r) > Math.abs(max.r) ? r : max, validResults[0]);
@@ -2176,6 +2316,8 @@
                 if (maxR && Math.abs(maxR.r) > 0.3) {
                     summary += ` La correlazione più evidente si osserva in ${maxR.region} (r = ${maxR.r.toFixed(3)}).`;
                 }
+                const totalEvents = validResults.reduce((sum, r) => sum + r.events, 0);
+                summary += ` Totale eventi analizzati: ${totalEvents}.`;
                 html += `<div style="background:#0d1520; border-radius:8px; padding:10px; font-size:12px; color:#b0c4de; border-left: 3px solid #60a5fa;">${summary}</div>`;
             }
 
@@ -2218,7 +2360,7 @@
         }
 
         // ============================================================
-        // AGGIUNGE I PULSANTI PRO NELL'INTERFACCIA
+        // AGGIUNGE PULSANTI PRO
         // ============================================================
         function addProUI() {
             const statsPanel = document.getElementById('statsPanel');
@@ -2393,14 +2535,14 @@
             this.classList.add('active');
             document.getElementById('modeAdvanced').classList.remove('active');
             state.mode = 'base';
-            document.getElementById('filtersPanel').classList.remove('visible');
+            document.getElementById('filtersPanel').style.display = 'none';
         });
 
         document.getElementById('modeAdvanced').addEventListener('click', function() {
             this.classList.add('active');
             document.getElementById('modeBase').classList.remove('active');
             state.mode = 'advanced';
-            document.getElementById('filtersPanel').classList.add('visible');
+            document.getElementById('filtersPanel').style.display = 'flex';
         });
 
         document.getElementById('exportCSV').addEventListener('click', exportCSV);
@@ -2415,8 +2557,14 @@
         }
 
         initChart();
+        initMap();
         loadData();
         addProUI();
+
+        // Forza visibilità filtri se la modalità è avanzata
+        if (state.mode === 'advanced') {
+            document.getElementById('filtersPanel').style.display = 'flex';
+        }
 
         setInterval(loadData, 120000);
 
@@ -2427,6 +2575,7 @@
         console.log('🔔 Notifiche attive per anomalie critiche');
         console.log('📈 Analisi statistica: correlazione Spearman + FDR');
         console.log('⭐ Versione Pro: funzionalità avanzate disponibili');
+        console.log('🗺️ Mappa terremoti attiva');
     </script>
 </body>
 </html>
