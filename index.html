@@ -1079,7 +1079,9 @@
             throw new Error('Nessun proxy funzionante');
         }
 
-          async function fetchRealData() {
+           
+                 
+                 async function fetchRealData() {
     try {
         console.log('📡 Caricamento dati reali...');
 
@@ -1088,30 +1090,28 @@
             'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_month.geojson'
         );
 
-        // 2. NOAA Kp Index - PROVA PRIMA IL FEED 30 GIORNI
+        // 2. NOAA Kp Index - USO FEED ALTERNATIVO (JSON più semplice)
         let kpRaw = null;
-        let kpFeedUsed = '';
         
         try {
-            // Tentativo con feed 30 giorni
-            kpRaw = await fetchWithProxy(
-                'https://services.swpc.noaa.gov/json/noaa-planetary-k-index-30-day.json'
+            // Tentativo con feed alternativo (formato più semplice)
+            const kpResponse = await fetchWithProxy(
+                'https://services.swpc.noaa.gov/products/solar-wind/plasma-7-day.json'
             );
-            kpFeedUsed = '30-day';
-            console.log('✅ Feed Kp 30 giorni caricato');
-        } catch (e) {
-            console.log('⚠️ Feed 30 giorni fallito, provo feed standard...');
-            try {
-                // Fallback al feed standard
-                kpRaw = await fetchWithProxy(
-                    'https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json'
-                );
-                kpFeedUsed = 'standard';
-                console.log('✅ Feed Kp standard caricato');
-            } catch (e2) {
-                console.log('⚠️ Entrambi i feed Kp falliti');
-                throw new Error('NOAA: nessun feed Kp disponibile');
+            // Questo feed ha un formato diverso, lo elaboriamo
+            if (kpResponse && Array.isArray(kpResponse)) {
+                kpRaw = kpResponse;
+                console.log('✅ Feed Kp alternativo caricato');
+            } else {
+                throw new Error('Formato feed non valido');
             }
+        } catch (e) {
+            console.log('⚠️ Feed alternativo fallito, provo feed standard...');
+            // Fallback al feed standard
+            kpRaw = await fetchWithProxy(
+                'https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json'
+            );
+            console.log('✅ Feed Kp standard caricato');
         }
 
         // 3. Verifica dati
@@ -1122,9 +1122,6 @@
             throw new Error('NOAA: dati Kp non validi');
         }
 
-        // ... il resto del codice rimane uguale ...
-        // (elabora terremoti, elabora Kp, combina i dati)
-        
         // 4. Elabora terremoti - SALVA LE COORDINATE
         const quakeEvents = quakeData.features || [];
         const quakeByDay = {};
@@ -1151,26 +1148,37 @@
             }
         });
 
-        // 5. Elabora Kp (supporta entrambi i formati di feed)
+        // 5. Elabora Kp - supporta formati diversi
         const kpValues = {};
-        for (let i = 1; i < kpRaw.length; i++) {
+        for (let i = 0; i < kpRaw.length; i++) {
             const row = kpRaw[i];
-            if (!row || row.length < 2) continue;
+            if (!row) continue;
             
-            // Il feed 30-day ha formato diverso: [{date, kp}]
             let dateStr, kpVal;
-            if (row.date) {
-                // Formato 30-day
-                dateStr = row.date;
-                kpVal = parseFloat(row.kp);
-            } else {
-                // Formato standard
-                dateStr = row[0];
-                kpVal = parseFloat(row[1]);
+            
+            // Rileva il formato automaticamente
+            if (Array.isArray(row)) {
+                // Formato standard: [data, kp]
+                if (row.length >= 2) {
+                    dateStr = row[0];
+                    kpVal = parseFloat(row[1]);
+                }
+            } else if (typeof row === 'object') {
+                // Formato oggetto: {date, kp} o {time_tag, kp}
+                if (row.date) {
+                    dateStr = row.date;
+                    kpVal = parseFloat(row.kp);
+                } else if (row.time_tag) {
+                    dateStr = row.time_tag;
+                    kpVal = parseFloat(row.kp);
+                }
             }
             
-            if (isNaN(kpVal)) continue;
+            if (!dateStr || isNaN(kpVal)) continue;
+            
             const date = new Date(dateStr);
+            if (isNaN(date.getTime())) continue;
+            
             const key = date.toISOString().slice(0, 10);
             if (!kpValues[key]) {
                 kpValues[key] = [];
@@ -1178,7 +1186,7 @@
             kpValues[key].push(kpVal);
         }
 
-        // 6. Combina i dati (invariato)
+        // 6. Combina i dati - forziamo i 30 giorni
         const combined = [];
         const now = new Date();
         for (let i = 30; i >= 0; i--) {
@@ -1205,7 +1213,8 @@
             throw new Error('Nessun dato valido dopo l\'elaborazione');
         }
 
-        console.log(`✅ Dati reali caricati: ${combined.length} giorni (feed Kp: ${kpFeedUsed})`);
+        console.log(`✅ Dati reali caricati: ${combined.length} giorni`);
+        console.log(`📊 Giorni con Kp > 0: ${combined.filter(d => d.kp > 0).length}`);
         return combined;
 
     } catch (error) {
