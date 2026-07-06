@@ -708,7 +708,40 @@
                 </div>
             </div>
         </div>
-
+<!-- PANNELLO FILTRI (da aggiungere) -->
+<div class="filters-panel" id="filtersPanel">
+    <div class="filter-group">
+        <label>Magnitudo minima</label>
+        <div class="filter-row">
+            <input type="range" id="magFilter" min="4.5" max="8.0" value="4.5" step="0.1" />
+            <span class="range-value" id="magValue">≥ 4.5</span>
+        </div>
+    </div>
+    <div class="filter-group">
+        <label>Kp minimo</label>
+        <div class="filter-row">
+            <input type="range" id="kpFilter" min="0" max="9" value="0" step="0.5" />
+            <span class="range-value" id="kpValueFilter">≥ 0</span>
+        </div>
+    </div>
+    <div class="filter-group">
+        <label>Preset eventi estremi</label>
+        <div class="preset-buttons">
+            <button data-preset="all" class="active-preset">Tutti</button>
+            <button data-preset="bigQuakes">M≥7</button>
+            <button data-preset="solarStorms">Kp≥6</button>
+            <button data-preset="redDays">Entrambi</button>
+        </div>
+    </div>
+    <div class="filter-group" style="flex:0 0 auto;">
+        <label>📥 Esporta</label>
+        <div class="export-row">
+            <button id="exportCSV">CSV</button>
+            <button id="exportJSON">JSON</button>
+            <button id="exportPNG">PNG</button>
+        </div>
+    </div>
+</div>
         <div class="chart-wrapper">
             <div class="chart-title">
                 <h3>📈 Doppia traccia — ultimi 30 giorni</h3>
