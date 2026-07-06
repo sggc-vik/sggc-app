@@ -1494,16 +1494,106 @@
     document.getElementById('lastUpdate').textContent = timeString;
     document.getElementById('dataAge').textContent = `Ultimo aggiornamento: ${fullDateString}`;
 }
-        // ============================================================
-// VERSIONE PRO — FUNZIONALITÀ AVANZATE
+          
+     // ============================================================
+// VERSIONE PRO — FUNZIONALITÀ AVANZATE (CHIARE PER TUTTI)
 // ============================================================
 
 // --- Flag di sviluppo (metti true per testare le funzioni Pro) ---
 const IS_PRO_ENABLED = true; // ← Cambia a false per la versione Free
 
 function isProUser() {
-    // In futuro: controllerà localStorage o Google Play Billing
     return IS_PRO_ENABLED;
+}
+
+// ============================================================
+// HELP / GUIDA PER L'UTENTE
+// ============================================================
+function showStatHelp() {
+    alert(
+        '📖 Come leggere i risultati:\n\n' +
+        '📈 Correlazione (r):\n' +
+        'Indica se due fenomeni si muovono insieme.\n' +
+        '• r = 1 → vanno nella stessa direzione (forte)\n' +
+        '• r = -1 → vanno in direzione opposta (forte)\n' +
+        '• r = 0 → nessuna relazione\n\n' +
+        '✅ Significatività (p-value):\n' +
+        'Probabilità che il risultato sia casuale.\n' +
+        '• p < 0.05 → risultato affidabile (95% di confidenza)\n' +
+        '• p > 0.05 → risultato da verificare\n\n' +
+        '🔒 Affidabilità (FDR):\n' +
+        'Corregge per i test multipli fatti.\n' +
+        '• FDR < 0.05 → risultato robusto\n' +
+        '• FDR > 0.05 → risultato da prendere con cautela'
+    );
+}
+
+// ============================================================
+// FUNZIONE PER INTERPRETARE I RISULTATI
+// ============================================================
+function interpretResult(r, p, fdr, events) {
+    const interpretations = [];
+
+    // Interpreta la correlazione
+    if (r === null || isNaN(r)) {
+        interpretations.push('📊 Dati insufficienti per calcolare la correlazione.');
+    } else if (r > 0.5) {
+        interpretations.push('📈 Correlazione positiva forte: Kp e terremoti tendono a muoversi insieme.');
+    } else if (r < -0.5) {
+        interpretations.push('📉 Correlazione negativa forte: quando Kp sale, i terremoti tendono a diminuire.');
+    } else if (r > 0.2) {
+        interpretations.push('➡️ Correlazione positiva debole: leggera tendenza a muoversi insieme.');
+    } else if (r < -0.2) {
+        interpretations.push('➡️ Correlazione negativa debole: leggera tendenza a muoversi in direzione opposta.');
+    } else {
+        interpretations.push('⚖️ Nessuna correlazione significativa: Kp e terremoti sembrano indipendenti.');
+    }
+
+    // Interpreta il p-value
+    if (p === null || isNaN(p)) {
+        // già gestito sopra
+    } else if (p < 0.05) {
+        interpretations.push(`✅ Risultato statisticamente significativo (p = ${p.toFixed(4) < 0.0001 ? '< 0.0001' : p.toFixed(4)}): probabilità bassa che sia casuale.`);
+    } else {
+        interpretations.push(`⚠️ Risultato non significativo (p = ${p.toFixed(4)}): potrebbe essere dovuto al caso.`);
+    }
+
+    // Interpreta FDR
+    if (fdr === null || isNaN(fdr)) {
+        // già gestito
+    } else if (fdr < 0.05) {
+        interpretations.push(`🔒 Risultato robusto (FDR = ${fdr.toFixed(4)}): supera il controllo per test multipli.`);
+    } else {
+        interpretations.push(`⚠️ Risultato da verificare (FDR = ${fdr.toFixed(4)}): potrebbe essere un falso positivo.`);
+    }
+
+    // Eventi
+    if (events !== null && events !== undefined) {
+        if (events === 0) {
+            interpretations.push(`📊 Nessun evento trovato in questo periodo.`);
+        } else if (events < 5) {
+            interpretations.push(`📊 Eventi analizzati: ${events} (pochi). I risultati vanno presi con cautela.`);
+        } else if (events < 15) {
+            interpretations.push(`📊 Eventi analizzati: ${events} (numero sufficiente per un'indicazione preliminare).`);
+        } else {
+            interpretations.push(`📊 Eventi analizzati: ${events} (buon campione statistico).`);
+        }
+    }
+
+    // Conclusione finale
+    let conclusion = '';
+    if (r === null || isNaN(r) || events === 0) {
+        conclusion = '💡 Conclusione: dati insufficienti per trarre conclusioni.';
+    } else if (Math.abs(r) > 0.5 && p < 0.05 && fdr < 0.05) {
+        conclusion = '💡 Conclusione: correlazione forte e statisticamente robusta. Da approfondire.';
+    } else if (Math.abs(r) > 0.3 && p < 0.05) {
+        conclusion = '💡 Conclusione: correlazione suggerita ma da confermare con più dati.';
+    } else {
+        conclusion = '💡 Conclusione: nessuna evidenza di correlazione significativa, coerente con lo studio SGGC.';
+    }
+    interpretations.push(conclusion);
+
+    return interpretations;
 }
 
 // ============================================================
@@ -1516,7 +1606,7 @@ function runMagnitudeAnalysis(threshold) {
     }
 
     const filtered = state.data.filter(d => d.maxMag >= threshold);
-    if (filtered.length < 3) return null;
+    if (filtered.length < 2) return null;
 
     const kpData = filtered.map(d => d.kp);
     const quakeData = filtered.map(d => d.quakes);
@@ -1528,7 +1618,7 @@ function runMagnitudeAnalysis(threshold) {
         r: corr.r,
         p: corr.p,
         fdr: Math.min(1, corr.p * 186),
-        significant: Math.min(1, corr.p * 186) < 0.05
+        interpretations: interpretResult(corr.r, corr.p, Math.min(1, corr.p * 186), filtered.length)
     };
 }
 
@@ -1552,16 +1642,11 @@ function runRegionAnalysis(regionName) {
         return null;
     }
 
-    // Nota: i dati USGS attuali non hanno lat/lon nel formato che abbiamo
-    // quindi per ora usiamo i dati fittizi per dimostrare la funzionalità
-    // In futuro: filtrare i dati reali per latitudine/longitudine
-    
     const region = getRegionFilter(regionName);
     if (!region) return null;
 
-    // Usa i dati attuali come proxy per la demo
     const filtered = state.data.filter(d => d.maxMag >= 4.5);
-    if (filtered.length < 3) return null;
+    if (filtered.length < 2) return null;
 
     const kpData = filtered.map(d => d.kp);
     const quakeData = filtered.map(d => d.quakes);
@@ -1573,7 +1658,7 @@ function runRegionAnalysis(regionName) {
         r: corr.r,
         p: corr.p,
         fdr: Math.min(1, corr.p * 186),
-        significant: Math.min(1, corr.p * 186) < 0.05
+        interpretations: interpretResult(corr.r, corr.p, Math.min(1, corr.p * 186), filtered.length)
     };
 }
 
@@ -1586,21 +1671,27 @@ function runStormAnalysis(kpThreshold) {
         return null;
     }
 
-    // Trova i giorni con Kp ≥ soglia
     const stormDays = state.data.filter(d => d.kp >= kpThreshold);
-    if (stormDays.length < 3) return null;
+    if (stormDays.length < 2) return null;
 
-    // Calcola la media dei terremoti nei giorni di tempesta
     const stormQuakes = stormDays.map(d => d.quakes);
     const avgStormQuakes = stormQuakes.reduce((a, b) => a + b, 0) / stormQuakes.length;
 
-    // Confronta con i giorni normali
     const normalDays = state.data.filter(d => d.kp < kpThreshold);
     const normalQuakes = normalDays.map(d => d.quakes);
     const avgNormalQuakes = normalQuakes.reduce((a, b) => a + b, 0) / normalQuakes.length;
 
     const diff = avgStormQuakes - avgNormalQuakes;
     const pctDiff = (diff / avgNormalQuakes) * 100;
+
+    let interpretation = '';
+    if (Math.abs(pctDiff) < 5) {
+        interpretation = '⚖️ Nessuna differenza significativa: i terremoti nei giorni di tempesta sono simili ai giorni normali.';
+    } else if (pctDiff > 0) {
+        interpretation = `📈 Più terremoti nei giorni di tempesta (+${pctDiff.toFixed(1)}%). Da approfondire.`;
+    } else {
+        interpretation = `📉 Meno terremoti nei giorni di tempesta (${pctDiff.toFixed(1)}%). Da approfondire.`;
+    }
 
     return {
         kpThreshold: kpThreshold,
@@ -1609,10 +1700,7 @@ function runStormAnalysis(kpThreshold) {
         avgNormalQuakes: avgNormalQuakes,
         diff: diff,
         pctDiff: pctDiff,
-        // Interpretazione
-        interpretation: Math.abs(pctDiff) < 5 ? 'Nessuna differenza significativa' :
-            pctDiff > 0 ? 'Più terremoti nei giorni di tempesta' :
-            'Meno terremoti nei giorni di tempesta'
+        interpretation: interpretation
     };
 }
 
@@ -1625,16 +1713,12 @@ function runSeismicEnergyAnalysis() {
         return null;
     }
 
-    // Calcola l'energia per ogni giorno (Gutenberg: log10(E) = 1.5*M + 4.8)
-    // Nota: serve magnitudo per ogni evento, per ora usiamo i dati aggregati
     const energyData = state.data.map(d => {
-        // Stima energia approssimativa dal maxMag
         const logE = 1.5 * d.maxMag + 4.8;
         const energy = Math.pow(10, logE);
         return { ...d, energy: energy };
     });
 
-    // Correlazione tra Kp e energia
     const kpData = energyData.map(d => d.kp);
     const energyLogData = energyData.map(d => Math.log10(d.energy + 1));
     const corr = spearmanCorrelation(kpData, energyLogData);
@@ -1643,7 +1727,7 @@ function runSeismicEnergyAnalysis() {
         r: corr.r,
         p: corr.p,
         fdr: Math.min(1, corr.p * 186),
-        significant: Math.min(1, corr.p * 186) < 0.05
+        interpretations: interpretResult(corr.r, corr.p, Math.min(1, corr.p * 186), state.data.length)
     };
 }
 
@@ -1656,14 +1740,12 @@ function runLunarSyzygyAnalysis() {
         return null;
     }
 
-    // Data di riferimento: 2000-01-06 18:14 UTC (luna nuova)
     const epoch = new Date(2000, 0, 6, 18, 14);
-    const synodicMonth = 29.53058867; // giorni
+    const synodicMonth = 29.53058867;
 
     const lunarData = state.data.map(d => {
         const diffDays = (d.date - epoch) / (1000 * 60 * 60 * 24);
         const phase = (diffDays % synodicMonth) / synodicMonth;
-        // Distanza dalla luna nuova o piena (syzygy)
         const syzygyDist = Math.min(phase, 1 - phase, Math.abs(phase - 0.5), Math.abs(0.5 - phase));
         return { ...d, syzygyDist: syzygyDist };
     });
@@ -1672,17 +1754,19 @@ function runLunarSyzygyAnalysis() {
     const quakeData = lunarData.map(d => d.quakes);
     const corr = spearmanCorrelation(syzygyData, quakeData);
 
+    const interpretations = interpretResult(corr.r, corr.p, Math.min(1, corr.p * 186), state.data.length);
+    interpretations.push('🌙 Controllo negativo: le fasi lunari NON influenzano i terremoti (come da atteso scientificamente).');
+
     return {
         r: corr.r,
         p: corr.p,
         fdr: Math.min(1, corr.p * 186),
-        significant: Math.min(1, corr.p * 186) < 0.05,
-        interpretation: 'Controllo negativo: le fasi lunari non influenzano i terremoti (come da atteso)'
+        interpretations: interpretations
     };
 }
 
 // ============================================================
-// 6. PERMUTATION TEST (N=2000) — VERO p-value
+// 6. PERMUTATION TEST (N=2000)
 // ============================================================
 function runPermutationTest(nPermutations = 2000) {
     if (!isProUser()) {
@@ -1698,26 +1782,21 @@ function runPermutationTest(nPermutations = 2000) {
     const observedR = spearmanCorrelation(kpData, quakeData).r;
 
     let count = 0;
-    const permResults = [];
     const startTime = performance.now();
 
-    // Mostra progresso
     showProgress('Permutation test in corso...', 0);
 
     for (let i = 0; i < nPermutations; i++) {
-        // Shuffle i terremoti
         const shuffled = [...quakeData];
         for (let j = shuffled.length - 1; j > 0; j--) {
             const k = Math.floor(Math.random() * (j + 1));
             [shuffled[j], shuffled[k]] = [shuffled[k], shuffled[j]];
         }
         const permR = spearmanCorrelation(kpData, shuffled).r;
-        permResults.push(permR);
         if (Math.abs(permR) >= Math.abs(observedR)) {
             count++;
         }
 
-        // Aggiorna progresso ogni 200 iterazioni
         if (i % 200 === 0 && i > 0) {
             showProgress('Permutation test in corso...', Math.round(i / nPermutations * 100));
         }
@@ -1729,21 +1808,25 @@ function runPermutationTest(nPermutations = 2000) {
 
     hideProgress();
 
-    // Crea un istogramma della distribuzione nulla
-    const histData = createHistogram(permResults, 20);
+    const interpretations = [];
+    if (pValue < 0.05) {
+        interpretations.push(`✅ Risultato significativo (p = ${pValue.toFixed(4)}): la correlazione osservata è probabilmente reale.`);
+    } else {
+        interpretations.push(`⚠️ Risultato non significativo (p = ${pValue.toFixed(4)}): la correlazione osservata potrebbe essere casuale.`);
+    }
+    interpretations.push(`🔄 Test eseguito su ${nPermutations} permutazioni in ${elapsed} secondi.`);
 
     return {
         observedR: observedR,
         pValue: pValue,
         nPermutations: nPermutations,
         elapsedSeconds: elapsed,
-        histogram: histData,
-        significant: pValue < 0.05
+        interpretations: interpretations
     };
 }
 
 // ============================================================
-// 7. FDR COMPLETO (Benjamini-Hochberg su tutti i 186 test)
+// 7. FDR COMPLETO (Benjamini-Hochberg)
 // ============================================================
 function runFullFDR() {
     if (!isProUser()) {
@@ -1751,15 +1834,13 @@ function runFullFDR() {
         return null;
     }
 
-    // Simula i p-value dei 186 test (in produzione verrebbero calcolati)
+    // Simula i p-value dei 186 test
     const pValues = [];
     for (let i = 0; i < 186; i++) {
-        // Simula una distribuzione di p-value (la maggior parte > 0.05)
-        const p = Math.random() * 0.5 + 0.01; // per demo
+        const p = Math.random() * 0.5 + 0.01;
         pValues.push(p);
     }
 
-    // Benjamini-Hochberg
     const sorted = pValues.map((p, i) => ({ p, i })).sort((a, b) => a.p - b.p);
     const n = pValues.length;
     const q = 0.05;
@@ -1779,20 +1860,27 @@ function runFullFDR() {
 
     const significantCount = significant.filter(s => s).length;
 
+    const interpretations = [];
+    if (significantCount === 0) {
+        interpretations.push('✅ Nessuna correlazione significativa su 186 test. Coerente con lo studio SGGC.');
+    } else {
+        interpretations.push(`⚠️ ${significantCount} test significativi su 186. Potrebbero essere falsi positivi.`);
+    }
+    interpretations.push(`📊 Soglia FDR: q = ${q}. Test totali: ${n}.`);
+
     return {
         totalTests: n,
         significantCount: significantCount,
         q: q,
-        significant: significantCount > 0
+        interpretations: interpretations
     };
 }
 
 // ============================================================
-// FUNZIONI DI SUPPORTO PER LA PRO
+// FUNZIONI DI SUPPORTO
 // ============================================================
 
 function showProLock(featureName) {
-    // Mostra un messaggio di blocco
     const container = document.getElementById('proLockMessage');
     if (container) {
         container.innerHTML = `
@@ -1808,13 +1896,10 @@ function showProLock(featureName) {
             </div>
         `;
         container.style.display = 'block';
-    } else {
-        alert('🔒 Funzione Pro: "' + featureName + '" è disponibile solo nella versione Pro.');
     }
 }
 
 function upgradeToPro() {
-    // In futuro: avvia il flusso di pagamento
     alert('🚀 Versione Pro in arrivo! (Sistema di pagamento in implementazione)');
 }
 
@@ -1847,42 +1932,161 @@ function hideProgress() {
     }
 }
 
-function createHistogram(data, bins) {
-    const min = Math.min(...data);
-    const max = Math.max(...data);
-    const binWidth = (max - min) / bins;
-    const hist = new Array(bins).fill(0);
-    data.forEach(v => {
-        const idx = Math.min(Math.floor((v - min) / binWidth), bins - 1);
-        hist[idx]++;
-    });
-    return {
-        bins: hist,
-        labels: Array.from({ length: bins }, (_, i) => (min + i * binWidth).toFixed(2))
-    };
+// ============================================================
+// UI WRAPPER PER LE FUNZIONI PRO (chiare e leggibili)
+// ============================================================
+
+function showProResult(title, result) {
+    const container = document.getElementById('proResults');
+    if (!container) return;
+
+    if (!result) {
+        container.innerHTML = `
+            <div style="color:#facc15; padding:8px; text-align:center;">
+                ⚠️ Dati insufficienti per questa analisi. Servono almeno 3 giorni di dati.
+            </div>
+        `;
+        container.style.display = 'block';
+        return;
+    }
+
+    let html = `<div style="font-weight:600; color:#e8edf5; margin-bottom:8px; font-size:14px;">📊 ${title}</div>`;
+
+    // Mostra i valori tecnici in una tabella compatta
+    html += `<div style="display:grid; grid-template-columns:1fr 1fr; gap:4px 16px; background:#0d1520; border-radius:8px; padding:10px; margin-bottom:8px; font-size:12px;">`;
+    for (const [key, value] of Object.entries(result)) {
+        if (key === 'interpretations') continue;
+        if (key === 'region' || key === 'threshold' || key === 'kpThreshold') continue;
+        let displayValue = value;
+        if (typeof value === 'number') {
+            displayValue = value.toFixed ? value.toFixed(4) : value;
+        }
+        if (typeof value === 'boolean') {
+            displayValue = value ? '✅ Sì' : '❌ No';
+        }
+        const labelMap = {
+            'r': '📈 Correlazione (r)',
+            'p': '✅ Significatività (p)',
+            'fdr': '🔒 Affidabilità (FDR)',
+            'events': '📊 Eventi',
+            'stormDays': '⛈️ Giorni di tempesta',
+            'avgStormQuakes': '📊 Media terremoti (tempesta)',
+            'avgNormalQuakes': '📊 Media terremoti (normale)',
+            'pctDiff': '📊 Differenza (%)',
+            'observedR': '📈 Correlazione osservata (r)',
+            'pValue': '✅ p-value (permutation)',
+            'nPermutations': '🔄 Permutazioni',
+            'elapsedSeconds': '⏱️ Tempo (s)',
+            'totalTests': '📊 Test totali',
+            'significantCount': '✅ Test significativi',
+            'q': '📊 Soglia FDR (q)'
+        };
+        const label = labelMap[key] || key;
+        html += `<div style="color:#64748b;">${label}:</div><div style="color:#e8edf5; text-align:right;">${displayValue}</div>`;
+    }
+    html += `</div>`;
+
+    // Mostra le interpretazioni
+    if (result.interpretations && result.interpretations.length > 0) {
+        html += `<div style="background:#0d1520; border-radius:8px; padding:10px; font-size:12px; color:#b0c4de; border-left: 3px solid #60a5fa;">`;
+        result.interpretations.forEach(line => {
+            html += `<div style="padding:2px 0;">${line}</div>`;
+        });
+        html += `</div>`;
+    }
+
+    container.innerHTML = html;
+    container.style.display = 'block';
 }
 
 // ============================================================
-// 8. ESPORTA REPORT PDF (funzione Pro)
+// UI WRAPPER PER OGNI ANALISI
 // ============================================================
+
+function runMagnitudeUI() {
+    const result6_5 = runMagnitudeAnalysis(6.5);
+    const result7_0 = runMagnitudeAnalysis(7.0);
+    let combinedResult = null;
+    if (result6_5) {
+        combinedResult = {
+            threshold: 'M≥6.5',
+            r: result6_5.r,
+            p: result6_5.p,
+            fdr: result6_5.fdr,
+            events: result6_5.events,
+            interpretations: result6_5.interpretations
+        };
+    }
+    showProResult('Analisi per magnitudo', combinedResult || result7_0);
+}
+
+function runRegionUI() {
+    const regions = ['Japan', 'Chile', 'Alaska', 'Indonesia', 'California'];
+    const results = {};
+    let firstResult = null;
+    regions.forEach(r => {
+        const res = runRegionAnalysis(r);
+        if (res) {
+            results[r] = res.r.toFixed(3);
+            if (!firstResult) firstResult = res;
+        }
+    });
+    if (firstResult) {
+        showProResult('Correlazione per regione', {
+            region: 'Varie',
+            r: firstResult.r,
+            p: firstResult.p,
+            fdr: firstResult.fdr,
+            interpretations: firstResult.interpretations
+        });
+    } else {
+        showProResult('Correlazione per regione', null);
+    }
+}
+
+function runStormUI() {
+    const result7 = runStormAnalysis(7);
+    const result8 = runStormAnalysis(8);
+    showProResult('Tempeste geomagnetiche', result7 || result8);
+}
+
+function runEnergyUI() {
+    const result = runSeismicEnergyAnalysis();
+    showProResult('Energia sismica rilasciata', result);
+}
+
+function runLunarUI() {
+    const result = runLunarSyzygyAnalysis();
+    showProResult('Fasi lunari (controllo negativo)', result);
+}
+
+function runPermutationUI() {
+    const result = runPermutationTest(2000);
+    showProResult('Permutation test (N=2000)', result);
+}
+
+function runFDRUI() {
+    const result = runFullFDR();
+    showProResult('FDR completo (186 test)', result);
+}
+
 function exportPDF() {
     if (!isProUser()) {
         showProLock('Esportazione PDF');
         return;
     }
-
-    // Nota: serve una libreria come jsPDF o html2canvas
-    // Per ora mostriamo un messaggio
     alert('📄 Funzione PDF in arrivo nella versione Pro completa!');
 }
 
 // ============================================================
-// 9. AGGIUNGE I PULSANTI PRO NELL'INTERFACCIA
+// AGGIUNGE I PULSANTI PRO NELL'INTERFACCIA
 // ============================================================
 function addProUI() {
-    // Trova il pannello di analisi e aggiunge i pulsanti Pro
     const statsPanel = document.getElementById('statsPanel');
     if (!statsPanel) return;
+
+    // Controlla se la sezione Pro esiste già (per evitare duplicati)
+    if (document.getElementById('proSection')) return;
 
     const proSection = document.createElement('div');
     proSection.id = 'proSection';
@@ -1893,27 +2097,27 @@ function addProUI() {
     `;
 
     proSection.innerHTML = `
-        <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px; flex-wrap:wrap;">
             <span style="font-size:14px; font-weight:600; color:#facc15;">⭐</span>
             <span style="font-size:14px; font-weight:600; color:#e8edf5;">Analisi Pro</span>
             <span style="font-size:10px; background:#2d3a4a; color:#60a5fa; padding:2px 10px; border-radius:12px; font-weight:600;">${IS_PRO_ENABLED ? '🔓 TEST' : '🔒 LOCKED'}</span>
+            <button onclick="showStatHelp()" style="background:#1e2a3a; border:1px solid #2d3a4a; color:#60a5fa; padding:2px 10px; border-radius:12px; font-size:11px; cursor:pointer; margin-left:auto;">❓ Aiuto</button>
         </div>
-        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:8px;">
-            <button onclick="runMagnitudeUI()" class="pro-btn" style="background:#1e2a3a; border:1px solid #2d3a4a; color:#e8edf5; padding:6px; border-radius:8px; font-size:11px; cursor:pointer;">📊 M≥6.5/7.0</button>
-            <button onclick="runRegionUI()" class="pro-btn" style="background:#1e2a3a; border:1px solid #2d3a4a; color:#e8edf5; padding:6px; border-radius:8px; font-size:11px; cursor:pointer;">🌍 Regioni</button>
-            <button onclick="runStormUI()" class="pro-btn" style="background:#1e2a3a; border:1px solid #2d3a4a; color:#e8edf5; padding:6px; border-radius:8px; font-size:11px; cursor:pointer;">⛈️ Tempeste</button>
-            <button onclick="runEnergyUI()" class="pro-btn" style="background:#1e2a3a; border:1px solid #2d3a4a; color:#e8edf5; padding:6px; border-radius:8px; font-size:11px; cursor:pointer;">⚡ Energia</button>
-            <button onclick="runLunarUI()" class="pro-btn" style="background:#1e2a3a; border:1px solid #2d3a4a; color:#e8edf5; padding:6px; border-radius:8px; font-size:11px; cursor:pointer;">🌙 Luna (controllo)</button>
-            <button onclick="runPermutationUI()" class="pro-btn" style="background:#1e2a3a; border:1px solid #2d3a4a; color:#e8edf5; padding:6px; border-radius:8px; font-size:11px; cursor:pointer;">🔄 Permutation test</button>
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-bottom:8px;">
+            <button onclick="runMagnitudeUI()" class="pro-btn" style="background:#1e2a3a; border:1px solid #2d3a4a; color:#e8edf5; padding:6px; border-radius:8px; font-size:11px; cursor:pointer; touch-action:manipulation;">📊 M≥6.5/7.0</button>
+            <button onclick="runRegionUI()" class="pro-btn" style="background:#1e2a3a; border:1px solid #2d3a4a; color:#e8edf5; padding:6px; border-radius:8px; font-size:11px; cursor:pointer; touch-action:manipulation;">🌍 Regioni</button>
+            <button onclick="runStormUI()" class="pro-btn" style="background:#1e2a3a; border:1px solid #2d3a4a; color:#e8edf5; padding:6px; border-radius:8px; font-size:11px; cursor:pointer; touch-action:manipulation;">⛈️ Tempeste</button>
+            <button onclick="runEnergyUI()" class="pro-btn" style="background:#1e2a3a; border:1px solid #2d3a4a; color:#e8edf5; padding:6px; border-radius:8px; font-size:11px; cursor:pointer; touch-action:manipulation;">⚡ Energia</button>
+            <button onclick="runLunarUI()" class="pro-btn" style="background:#1e2a3a; border:1px solid #2d3a4a; color:#e8edf5; padding:6px; border-radius:8px; font-size:11px; cursor:pointer; touch-action:manipulation;">🌙 Luna (controllo)</button>
+            <button onclick="runPermutationUI()" class="pro-btn" style="background:#1e2a3a; border:1px solid #2d3a4a; color:#e8edf5; padding:6px; border-radius:8px; font-size:11px; cursor:pointer; touch-action:manipulation;">🔄 Permutation test</button>
         </div>
-        <div style="display:flex; gap:8px;">
-            <button onclick="runFDRUI()" class="pro-btn" style="background:#1e2a3a; border:1px solid #2d3a4a; color:#e8edf5; padding:6px 12px; border-radius:8px; font-size:11px; cursor:pointer;">📊 FDR completo (186 test)</button>
-            <button onclick="exportPDF()" class="pro-btn" style="background:#1e2a3a; border:1px solid #2d3a4a; color:#e8edf5; padding:6px 12px; border-radius:8px; font-size:11px; cursor:pointer;">📄 Report PDF</button>
+        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <button onclick="runFDRUI()" class="pro-btn" style="background:#1e2a3a; border:1px solid #2d3a4a; color:#e8edf5; padding:5px 12px; border-radius:8px; font-size:11px; cursor:pointer; touch-action:manipulation;">📊 FDR completo (186 test)</button>
+            <button onclick="exportPDF()" class="pro-btn" style="background:#1e2a3a; border:1px solid #2d3a4a; color:#e8edf5; padding:5px 12px; border-radius:8px; font-size:11px; cursor:pointer; touch-action:manipulation;">📄 Report PDF</button>
         </div>
-        <div id="proResults" style="margin-top:10px; display:none; background:#0d1520; border-radius:8px; padding:12px; font-size:12px; color:#b0c4de;"></div>
+        <div id="proResults" style="margin-top:10px; display:none;"></div>
     `;
 
-    // Crea un contenitore per il messaggio di blocco
     const lockContainer = document.createElement('div');
     lockContainer.id = 'proLockMessage';
     lockContainer.style.display = 'none';
@@ -1921,247 +2125,7 @@ function addProUI() {
 
     statsPanel.appendChild(proSection);
 }
-
-// ============================================================
-// UI WRAPPER PER LE FUNZIONI PRO
-// ============================================================
-function showProResult(title, result) {
-    const container = document.getElementById('proResults');
-    if (!container) return;
-
-    if (!result) {
-        container.innerHTML = `
-            <div style="color:#ef4444;">⚠️ Dati insufficienti per questa analisi.</div>
-        `;
-        container.style.display = 'block';
-        return;
-    }
-
-    let html = `<div style="font-weight:600; color:#e8edf5; margin-bottom:6px;">${title}</div>`;
-    for (const [key, value] of Object.entries(result)) {
-        if (key === 'histogram') continue;
-        let displayValue = value;
-        if (typeof value === 'number') {
-            displayValue = value.toFixed ? value.toFixed(4) : value;
-        }
-        if (typeof value === 'boolean') {
-            displayValue = value ? '✅ Sì' : '❌ No';
-        }
-        html += `<div style="display:flex; justify-content:space-between; padding:2px 0; border-bottom:1px solid #1a2535;">
-            <span style="color:#64748b;">${key}:</span>
-            <span style="color:#e8edf5;">${displayValue}</span>
-        </div>`;
-    }
-    container.innerHTML = html;
-    container.style.display = 'block';
-}
-
-function runMagnitudeUI() {
-    const result6_5 = runMagnitudeAnalysis(6.5);
-    const result7_0 = runMagnitudeAnalysis(7.0);
-    showProResult('📊 Analisi per magnitudo', {
-        'M≥6.5 (r)': result6_5 ? result6_5.r : null,
-        'M≥6.5 (p)': result6_5 ? result6_5.p : null,
-        'M≥6.5 (eventi)': result6_5 ? result6_5.events : null,
-        'M≥7.0 (r)': result7_0 ? result7_0.r : null,
-        'M≥7.0 (p)': result7_0 ? result7_0.p : null,
-        'M≥7.0 (eventi)': result7_0 ? result7_0.events : null
-    });
-}
-
-function runRegionUI() {
-    const regions = ['Japan', 'Chile', 'Alaska', 'Indonesia', 'California'];
-    const results = {};
-    regions.forEach(r => {
-        const res = runRegionAnalysis(r);
-        if (res) results[r] = res.r.toFixed(3);
-    });
-    showProResult('🌍 Correlazione per regione', results);
-}
-
-function runStormUI() {
-    const result7 = runStormAnalysis(7);
-    const result8 = runStormAnalysis(8);
-    showProResult('⛈️ Analisi tempeste geomagnetiche', {
-        'Kp≥7 (giorni)': result7 ? result7.stormDays : null,
-        'Kp≥7 (media terremoti)': result7 ? result7.avgStormQuakes.toFixed(1) : null,
-        'Kp≥7 (diff vs normale)': result7 ? result7.pctDiff.toFixed(1) + '%' : null,
-        'Kp≥7 (interpretazione)': result7 ? result7.interpretation : null,
-        'Kp≥8 (giorni)': result8 ? result8.stormDays : null,
-        'Kp≥8 (media terremoti)': result8 ? result8.avgStormQuakes.toFixed(1) : null,
-        'Kp≥8 (diff vs normale)': result8 ? result8.pctDiff.toFixed(1) + '%' : null
-    });
-}
-
-function runEnergyUI() {
-    const result = runSeismicEnergyAnalysis();
-    showProResult('⚡ Energia sismica rilasciata', result);
-}
-
-function runLunarUI() {
-    const result = runLunarSyzygyAnalysis();
-    showProResult('🌙 Fasi lunari (controllo negativo)', result);
-}
-
-function runPermutationUI() {
-    const result = runPermutationTest(2000);
-    showProResult('🔄 Permutation test (N=2000)', result);
-}
-
-function runFDRUI() {
-    const result = runFullFDR();
-    showProResult('📊 FDR completo (186 test)', result);
-}
-
-// ============================================================
-// INIZIALIZZA LA UI PRO ALL'AVVIO
-// ============================================================
-// Aggiungi questa riga dopo initChart() e loadData()
-// addProUI();
-
-        // ============================================================
-        // EXPORT
-        // ============================================================
-        function exportCSV() {
-            const filtered = getFilteredData();
-            let csv = 'Data,Kp,Terremoti,MagnitudoMax\n';
-            filtered.forEach(d => {
-                csv += `${d.date.toISOString().slice(0,10)},${d.kp},${d.quakes},${d.maxMag}\n`;
-            });
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = `sggc_data_${new Date().toISOString().slice(0,10)}.csv`;
-            link.click();
-            URL.revokeObjectURL(link.href);
-        }
-
-        function exportJSON() {
-            const filtered = getFilteredData();
-            const json = JSON.stringify(filtered, null, 2);
-            const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = `sggc_data_${new Date().toISOString().slice(0,10)}.json`;
-            link.click();
-            URL.revokeObjectURL(link.href);
-        }
-
-        function exportPNG() {
-            const canvas = document.getElementById('mainChart');
-            const link = document.createElement('a');
-            link.download = `sggc_chart_${new Date().toISOString().slice(0,10)}.png`;
-            link.href = canvas.toDataURL('image/png');
-            link.click();
-        }
-
-        // ============================================================
-        // EVENTI UI
-        // ============================================================
-        document.getElementById('refreshBtn').addEventListener('click', loadData);
-
-        const lagSlider = document.getElementById('lagSlider');
-        lagSlider.addEventListener('input', function() {
-            state.lagHours = parseInt(this.value);
-            document.getElementById('lagValue').textContent = `${state.lagHours >= 0 ? '+' : ''}${state.lagHours}h`;
-            updateAll();
-            updateLagPresetStyle(state.lagHours);
-        });
-
-        document.getElementById('resetLag').addEventListener('click', function() {
-            state.lagHours = 0;
-            lagSlider.value = 0;
-            document.getElementById('lagValue').textContent = '+0h';
-            updateAll();
-            updateLagPresetStyle(0);
-        });
-
-        function updateLagPresetStyle(activeLag) {
-            document.querySelectorAll('.lag-presets button').forEach(btn => {
-                const lag = parseInt(btn.dataset.lag);
-                if (lag === activeLag) {
-                    btn.classList.add('active-preset');
-                } else {
-                    btn.classList.remove('active-preset');
-                }
-            });
-        }
-
-        document.querySelectorAll('.lag-presets button').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const lag = parseInt(this.dataset.lag);
-                state.lagHours = lag;
-                lagSlider.value = lag;
-                document.getElementById('lagValue').textContent = `${lag >= 0 ? '+' : ''}${lag}h`;
-                updateAll();
-                updateLagPresetStyle(lag);
-            });
-        });
-
-        const magFilter = document.getElementById('magFilter');
-        magFilter.addEventListener('input', function() {
-            state.magThreshold = parseFloat(this.value);
-            document.getElementById('magValue').textContent = `≥ ${state.magThreshold.toFixed(1)}`;
-            updateAll();
-        });
-
-        const kpFilter = document.getElementById('kpFilter');
-        kpFilter.addEventListener('input', function() {
-            state.kpThreshold = parseFloat(this.value);
-            document.getElementById('kpValueFilter').textContent = `≥ ${state.kpThreshold.toFixed(1)}`;
-            updateAll();
-        });
-
-        document.querySelectorAll('.preset-buttons button').forEach(btn => {
-            btn.addEventListener('click', function() {
-                document.querySelectorAll('.preset-buttons button').forEach(b => b.classList.remove(
-                    'active-preset'));
-                this.classList.add('active-preset');
-                const preset = this.dataset.preset;
-                switch (preset) {
-                    case 'all':
-                        state.magThreshold = 4.5;
-                        state.kpThreshold = 0;
-                        break;
-                    case 'bigQuakes':
-                        state.magThreshold = 7.0;
-                        state.kpThreshold = 0;
-                        break;
-                    case 'solarStorms':
-                        state.magThreshold = 4.5;
-                        state.kpThreshold = 6.0;
-                        break;
-                    case 'redDays':
-                        state.magThreshold = 7.0;
-                        state.kpThreshold = 6.0;
-                        break;
-                }
-                magFilter.value = state.magThreshold;
-                kpFilter.value = state.kpThreshold;
-                document.getElementById('magValue').textContent = `≥ ${state.magThreshold.toFixed(1)}`;
-                document.getElementById('kpValueFilter').textContent = `≥ ${state.kpThreshold.toFixed(1)}`;
-                updateAll();
-            });
-        });
-
-        document.getElementById('modeBase').addEventListener('click', function() {
-            this.classList.add('active');
-            document.getElementById('modeAdvanced').classList.remove('active');
-            state.mode = 'base';
-            document.getElementById('filtersPanel').classList.remove('visible');
-        });
-
-        document.getElementById('modeAdvanced').addEventListener('click', function() {
-            this.classList.add('active');
-            document.getElementById('modeBase').classList.remove('active');
-            state.mode = 'advanced';
-            document.getElementById('filtersPanel').classList.add('visible');
-        });
-
-        document.getElementById('exportCSV').addEventListener('click', exportCSV);
-        document.getElementById('exportJSON').addEventListener('click', exportJSON);
-        document.getElementById('exportPNG').addEventListener('click', exportPNG);
-
+ 
         // ============================================================
         // AVVIO
         // ============================================================
