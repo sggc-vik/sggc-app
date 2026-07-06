@@ -1369,27 +1369,78 @@
             });
         }
 
-        function updateChartData() {
-            if (!state.chartInstance) return;
-            const filtered = getFilteredData();
-            const labels = filtered.map(d => d.date.toLocaleDateString('it-IT', { day: '2-digit', month: 'short' }));
+         function updateChartData() {
+    if (!state.chartInstance) return;
+    const filtered = getFilteredData();
+    
+    if (filtered.length === 0) {
+        state.chartInstance.data.labels = [];
+        state.chartInstance.data.datasets[0].data = [];
+        state.chartInstance.data.datasets[1].data = [];
+        state.chartInstance.update();
+        return;
+    }
+    
+    // Mostra le date originali (dei terremoti)
+    const labels = filtered.map(d => d.date.toLocaleDateString('it-IT', { day: '2-digit', month: 'short' }));
+    
+    // Kp shiftato (se il lag è attivo, i valori sono già shiftati)
+    const kpData = filtered.map(d => d.kp !== undefined ? d.kp : 0);
+    
+    // Terremoti (rimangono invariati)
+    const quakeData = filtered.map(d => d.quakes);
+    
+    state.chartInstance.data.labels = labels;
+    state.chartInstance.data.datasets[0].data = kpData;
+    state.chartInstance.data.datasets[1].data = quakeData;
+    state.chartInstance.update();
+}
 
-            state.chartInstance.data.labels = labels;
-            state.chartInstance.data.datasets[0].data = filtered.map(d => d.kp);
-            state.chartInstance.data.datasets[1].data = filtered.map(d => d.quakes);
-            state.chartInstance.update();
-        }
-
-        function getFilteredData() {
-            let filtered = state.data.filter(d =>
-                d.maxMag >= state.magThreshold &&
-                d.kp >= state.kpThreshold
-            );
-            return filtered.map(d => {
-                const shifted = new Date(d.date.getTime() + state.lagHours * 3600000);
-                return { ...d, date: shifted };
-            });
-        }
+         function getFilteredData() {
+    let filtered = state.data.filter(d =>
+        d.maxMag >= state.magThreshold &&
+        d.kp >= state.kpThreshold
+    );
+    
+    if (filtered.length === 0) return [];
+    
+    // Se il lag è 0, restituisci i dati così come sono
+    if (state.lagHours === 0) {
+        return filtered.map(d => ({ ...d }));
+    }
+    
+    // Crea un dizionario Kp per data per lookup veloce
+    const kpByDate = {};
+    filtered.forEach(d => {
+        const key = d.date.toISOString().slice(0, 10);
+        kpByDate[key] = d.kp;
+    });
+    
+    const lagMilliseconds = state.lagHours * 3600000;
+    
+    // Costruisci i dati shiftati
+    const result = filtered.map(d => {
+        const originalDate = d.date;
+        const shiftedDate = new Date(originalDate.getTime() + lagMilliseconds);
+        const shiftedKey = shiftedDate.toISOString().slice(0, 10);
+        
+        // Cerca il Kp corrispondente alla data shiftata
+        const shiftedKp = kpByDate[shiftedKey] !== undefined ? kpByDate[shiftedKey] : null;
+        
+        return {
+            date: originalDate,
+            kp: shiftedKp !== null ? shiftedKp : 0,
+            quakes: d.quakes,
+            maxMag: d.maxMag,
+            // Per debug
+            kpOriginal: d.kp,
+            shiftedDate: shiftedDate,
+            lagHours: state.lagHours
+        };
+    });
+    
+    return result;
+}
 
         // ============================================================
         // MAPPA
