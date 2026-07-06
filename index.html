@@ -1087,9 +1087,9 @@
                     'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_month.geojson'
                 );
 
-                const kpRaw = await fetchWithProxy(
-                    'https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json'
-                );
+                 const kpRes = await fetchWithProxy(
+    'https://services.swpc.noaa.gov/json/noaa-planetary-k-index-30-day.json'
+);
 
                 if (!quakeData.features || quakeData.features.length === 0) {
                     throw new Error('USGS: nessun terremoto trovato');
