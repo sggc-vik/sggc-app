@@ -1421,7 +1421,7 @@
             }, 500);
         }
 
-        function updateMap() {
+          function updateMap() {
     if (!mapInstance) {
         initMap();
         setTimeout(updateMap, 500);
@@ -1531,59 +1531,6 @@
         });
     }
 }
-         
-
-            function getColor(mag) {
-                if (mag >= 7.0) return '#ef4444';
-                if (mag >= 6.0) return '#fb923c';
-                if (mag >= 5.0) return '#facc15';
-                return '#4ade80';
-            }
-
-            function getRadius(mag) {
-                return Math.max(4, Math.min(18, 4 + (mag - 4.5) * 6));
-            }
-
-            let bounds = L.latLngBounds();
-
-            allEvents.forEach(e => {
-                const color = getColor(e.mag);
-                const radius = getRadius(e.mag);
-
-                const circle = L.circleMarker([e.lat, e.lon], {
-                    radius: radius,
-                    fillColor: color,
-                    color: '#0b0e14',
-                    weight: 1,
-                    opacity: 0.8,
-                    fillOpacity: 0.7
-                });
-
-                const dateStr = e.time ? new Date(e.time).toLocaleDateString('it-IT') : 'Data sconosciuta';
-                const magStr = e.mag ? e.mag.toFixed(1) : 'N/A';
-
-                circle.bindPopup(`
-                    <div style="font-size:13px;">
-                        <strong style="color:#e8edf5;">M${magStr}</strong>
-                        <span style="color:#94a3b8; font-size:11px;"> · ${dateStr}</span>
-                        <br>
-                        <span style="color:#94a3b8; font-size:11px;">
-                            Lat: ${e.lat.toFixed(2)}° · Lon: ${e.lon.toFixed(2)}°
-                        </span>
-                    </div>
-                `);
-
-                mapMarkersLayer.addLayer(circle);
-                bounds.extend([e.lat, e.lon]);
-            });
-
-            if (allEvents.length > 0) {
-                mapInstance.fitBounds(bounds, {
-                    padding: [30, 30],
-                    maxZoom: 8
-                });
-            }
-        }
 
         // ============================================================
         // UPDATE ALL
