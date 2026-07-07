@@ -1080,8 +1080,8 @@
         }
 
            
-                 
-                async function fetchRealData() {
+                  
+                  async function fetchRealData() {
     try {
         console.log('📡 Caricamento dati reali...');
 
@@ -1090,60 +1090,16 @@
             'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_month.geojson'
         );
 
+        // 2. NOAA Kp Index (solo feed standard, più veloce)
+        const kpRes = await fetchWithProxy(
+            'https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json'
+        );
+
         if (!quakeData.features || quakeData.features.length === 0) {
             throw new Error('USGS: nessun terremoto trovato');
         }
-
-        // 2. NOAA Kp Index - DA ARCHIVIO TEXTO (funziona sempre!)
-        let kpData = null;
-        try {
-            // Usa l'archivio storico in formato testo
-            const kpText = await fetchWithProxy(
-                'https://services.swpc.noaa.gov/text/daily-kp-index.txt'
-            );
-            
-            // Parsa il testo per trovare i dati
-            const lines = kpText.split('\n');
-            const kpValues = {};
-            
-            for (const line of lines) {
-                // Cerca righe che iniziano con una data (YYYY MM DD)
-                const match = line.match(/^(\d{4})\s+(\d{2})\s+(\d{2})\s+(\d+\.?\d*)/);
-                if (match) {
-                    const year = match[1];
-                    const month = match[2].padStart(2, '0');
-                    const day = match[3].padStart(2, '0');
-                    const kp = parseFloat(match[4]);
-                    const dateStr = `${year}-${month}-${day}`;
-                    
-                    if (!kpValues[dateStr]) {
-                        kpValues[dateStr] = [];
-                    }
-                    kpValues[dateStr].push(kp);
-                }
-            }
-            
-            console.log(`✅ Archivio Kp caricato: ${Object.keys(kpValues).length} giorni`);
-            kpData = kpValues;
-        } catch (e) {
-            console.log('⚠️ Archivio Kp fallito, provo feed JSON...');
-            // Fallback al feed JSON standard
-            const kpJson = await fetchWithProxy(
-                'https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json'
-            );
-            // Parsa il JSON
-            kpData = {};
-            for (let i = 1; i < kpJson.length; i++) {
-                const row = kpJson[i];
-                if (row && row.length >= 2) {
-                    const dateStr = row[0];
-                    const kp = parseFloat(row[1]);
-                    if (!isNaN(kp)) {
-                        if (!kpData[dateStr]) kpData[dateStr] = [];
-                        kpData[dateStr].push(kp);
-                    }
-                }
-            }
+        if (!kpRes || kpRes.length < 2) {
+            throw new Error('NOAA: dati Kp non validi');
         }
 
         // 3. Elabora terremoti
@@ -1172,21 +1128,33 @@
             }
         });
 
-        // 4. Combina i dati (30 giorni)
+        // 4. Elabora Kp (solo dal feed standard)
+        const kpValues = {};
+        for (let i = 1; i < kpRes.length; i++) {
+            const row = kpRes[i];
+            if (!row || row.length < 2) continue;
+            const dateStr = row[0];
+            const kpVal = parseFloat(row[1]);
+            if (isNaN(kpVal)) continue;
+            const date = new Date(dateStr);
+            const key = date.toISOString().slice(0, 10);
+            if (!kpValues[key]) {
+                kpValues[key] = [];
+            }
+            kpValues[key].push(kpVal);
+        }
+
+        // 5. Combina i dati
         const combined = [];
         const now = new Date();
         for (let i = 30; i >= 0; i--) {
             const d = new Date(now);
             d.setDate(d.getDate() - i);
             const key = d.toISOString().slice(0, 10);
-            
-            // Cerca il Kp per questa data
-            let avgKp = 0;
-            if (kpData && kpData[key]) {
-                const kpArray = kpData[key];
-                avgKp = Math.round(kpArray.reduce((a, b) => a + b, 0) / kpArray.length * 10) / 10;
-            }
-            
+            const kpArray = kpValues[key] || [];
+            const avgKp = kpArray.length > 0 ?
+                Math.round(kpArray.reduce((a, b) => a + b, 0) / kpArray.length * 10) / 10 :
+                0;
             const quakeMatch = quakeByDay[key] || { count: 0, maxMag: 0, events: [] };
             combined.push({
                 date: d,
@@ -1199,18 +1167,17 @@
 
         const hasData = combined.some(d => d.kp > 0 || d.quakes > 0);
         if (!hasData) {
-            throw new Error('Nessun dato valido dopo l\'elaborazione');
+            throw new Error('Nessun dato valido');
         }
 
-        console.log(`✅ Dati reali caricati: ${combined.length} giorni`);
+        console.log(`✅ Dati caricati: ${combined.length} giorni`);
         return combined;
 
     } catch (error) {
-        console.warn('⚠️ Errore fetch dati reali:', error.message);
+        console.warn('⚠️ Errore:', error.message);
         return null;
     }
-}
-                     
+}   
 
          
         // ============================================================
