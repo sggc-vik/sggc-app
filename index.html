@@ -1081,7 +1081,7 @@
 
            
                   
-                  async function fetchRealData() {
+         async function fetchRealData() {
     try {
         console.log('📡 Caricamento dati reali...');
 
@@ -1098,6 +1098,7 @@
         if (!quakeData.features || quakeData.features.length === 0) {
             throw new Error('USGS: nessun terremoto trovato');
         }
+
         if (!kpRes || kpRes.length < 2) {
             throw new Error('NOAA: dati Kp non validi');
         }
@@ -1128,20 +1129,16 @@
             }
         });
 
-                // ============================================================
+        // ============================================================
         // 4. ELABORA KP (Risolto: supporta oggetti e corregge date mobile)
         // ============================================================
         const kpValues = {};
-        
-        // Se l'API restituisce un array di array classico, saltiamo l'header (i=1), 
-        // se restituisce un array di oggetti partiamo dall'inizio (i=0)
         const startIndex = (kpRes.length > 0 && Array.isArray(kpRes[0])) ? 1 : 0;
 
         for (let i = startIndex; i < kpRes.length; i++) {
             const row = kpRes[i];
             if (!row) continue;
 
-            // Estrazione flessibile: prova prima come oggetto, poi come array
             let dateStr = row.time_tag || row[0];
             let kpStr = row.kp || row[1];
 
@@ -1150,13 +1147,13 @@
             const kpVal = parseFloat(kpStr);
             if (isNaN(kpVal)) continue;
 
-            // Compatibilità Mobile: sostituisce lo spazio con 'T' per lo standard ISO 8601
+            // Fix Mobile: Sostituisce lo spazio con 'T' per evitare "Invalid Date"
             if (typeof dateStr === 'string') {
                 dateStr = dateStr.replace(' ', 'T');
             }
 
             const date = new Date(dateStr);
-            if (isNaN(date.getTime())) continue; // Salta se la data non è valida
+            if (isNaN(date.getTime())) continue;
 
             const key = date.toISOString().slice(0, 10);
             if (!kpValues[key]) {
@@ -1165,26 +1162,22 @@
             kpValues[key].push(kpVal);
         }
 
-
-                // ============================================================
-        // 5. COMBINA I DATI (Versione Completa e Sicura)
+        // ============================================================
+        // 5. COMBINA I DATI (Versione Completa con Fix Fuso Orario UTC)
         // ============================================================
         const combined = [];
         const now = new Date();
         
-        // Ciclo a ritroso degli ultimi 30 giorni
         for (let i = 30; i >= 0; i--) {
             const d = new Date();
-            d.setUTCDate(now.getUTCDate() - i); // Forza l'uso del giorno UTC per evitare sfasamenti di fuso orario
-            const key = d.toISOString().slice(0, 10); // Formato "YYYY-MM-DD"
+            d.setUTCDate(now.getUTCDate() - i); // Allineamento UTC stabile per smartphone
+            const key = d.toISOString().slice(0, 10);
             
-            // Calcola la media del Kp per quel giorno
             const kpArray = kpValues[key] || [];
             const avgKp = kpArray.length > 0 ?
                 Math.round(kpArray.reduce((a, b) => a + b, 0) / kpArray.length * 10) / 10 :
                 0; 
 
-            // Recupera i terremoti di quel giorno (o imposta i valori di default se vuoto)
             const quakeMatch = quakeByDay[key] || { count: 0, maxMag: 0, events: [] };
             
             combined.push({
@@ -1196,12 +1189,15 @@
             });
         }
 
-        // ============================================================
-        // FINE DELLA FUNZIONE: Qui sotto tieni quello che avevi già!
-        // ============================================================
-        // Esempio: se avevi "return combined;" o "setChartData(combined);", lascialo qui.
+        return combined;
 
-
+    } catch (error) {
+        console.error('Errore nel caricamento dati reali:', error);
+        throw error;
+    }
+         }
+        
+             
          
         // ============================================================
         // CARICA DATI
