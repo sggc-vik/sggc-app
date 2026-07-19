@@ -1081,7 +1081,7 @@
 
            
                   
-           async function fetchRealData() {
+             async function fetchRealData() {
     try {
         console.log('📡 Caricamento dati reali...');
 
@@ -1090,9 +1090,9 @@
             'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_month.geojson'
         );
 
-        // 2. NOAA Kp Index (CORRETTO: URL ufficiale di NOAA)
+        // 2. NOAA Kp Index (Ripristinato l'URL originale corretto)
         const kpRes = await fetchWithProxy(
-            'https://services.swpc.noaa.gov/products/json/planetary-k-index.json'
+            'https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json'
         );
 
         if (!quakeData.features || quakeData.features.length === 0) {
@@ -1130,26 +1130,25 @@
         });
 
         // ============================================================
-        // 4. ELABORA KP (Risolto: Lettura della matrice ufficiale NOAA)
+        // 4. ELABORA KP (Risolto: Lettura sicura anti-bug per Mobile)
         // ============================================================
         const kpValues = {};
-        const startIndex = (kpRes.length > 0 && Array.isArray(kpRes[0])) ? 1 : 0;
 
-        for (let i = startIndex; i < kpRes.length; i++) {
+        for (let i = 0; i < kpRes.length; i++) {
             const row = kpRes[i];
             if (!row) continue;
 
-            // Gestisce sia array di array (formato standard NOAA) che eventuali oggetti
+            // Supporta l'array di array nativo di NOAA
             let dateStr = row.time_tag || row[0];
             let kpStr = row.kp || row[1];
 
             if (!dateStr || kpStr === undefined) continue;
 
             const kpVal = parseFloat(kpStr);
-            if (isNaN(kpVal)) continue;
+            if (isNaN(kpVal)) continue; // Salta l'intestazione ["time_tag", "kp"]
 
             if (typeof dateStr === 'string') {
-                // Taglio pulito anti-bug per i telefoni (prende solo "YYYY-MM-DD")
+                // Prende direttamente i primi 10 caratteri (es: "2026-07-19")
                 const key = dateStr.trim().slice(0, 10);
                 
                 if (/^\d{4}-\d{2}-\d{2}$/.test(key)) {
@@ -1194,11 +1193,7 @@
         throw error;
     }
 }
-  
 
-         
-
-             
          
         // ============================================================
         // CARICA DATI
