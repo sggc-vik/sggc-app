@@ -1081,7 +1081,7 @@
 
            
                   
-          async function fetchRealData() {
+            async function fetchRealData() {
     try {
         console.log('📡 Caricamento dati reali...');
 
@@ -1130,15 +1130,15 @@
         });
 
         // ============================================================
-        // 4. ELABORA KP (Risolto: Estrazione manuale anti-bug per Mobile)
+        // 4. ELABORA KP (Risolto: Taglio stringa diretto senza trappole regex)
         // ============================================================
         const kpValues = {};
-        const startIndex = (kpRes.length > 0 && Array.isArray(kpRes[0])) ? 1 : 0;
 
-        for (let i = startIndex; i < kpRes.length; i++) {
+        for (let i = 0; i < kpRes.length; i++) {
             const row = kpRes[i];
             if (!row) continue;
 
+            // Supporta sia array di array che oggetti dall'API NOAA
             let dateStr = row.time_tag || row[0];
             let kpStr = row.kp || row[1];
 
@@ -1148,41 +1148,28 @@
             if (isNaN(kpVal)) continue;
 
             if (typeof dateStr === 'string') {
-                dateStr = dateStr.trim();
+                // Estraiamo direttamente i primi 10 caratteri (es: "2026-07-19")
+                // Questo bypassa i bug di "Invalid Date" su mobile e le discrepanze sui secondi
+                const key = dateStr.trim().slice(0, 10);
                 
-                // Rompe la data in pezzi numerici singoli bypassando i bug dei browser mobile
-                const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2}):(\d{2})/);
-                
-                if (match) {
-                    const year = parseInt(match[1], 10);
-                    const month = parseInt(match[2], 10) - 1; // Mesi in JS (0-11)
-                    const day = parseInt(match[3], 10);
-                    const hour = parseInt(match[4], 10);
-                    const minute = parseInt(match[5], 10);
-                    const second = parseInt(match[6], 10);
-
-                    // Crea la data direttamente in tempo UTC nativo (NOAA è in UTC)
-                    const date = new Date(Date.UTC(year, month, day, hour, minute, second));
-                    
-                    if (!isNaN(date.getTime())) {
-                        const key = date.toISOString().slice(0, 10);
-                        if (!kpValues[key]) {
-                            kpValues[key] = [];
-                        }
-                        kpValues[key].push(kpVal);
+                // Semplice controllo formale per evitare l'intestazione della tabella ("time_tag")
+                if (/^\d{4}-\d{2}-\d{2}$/.test(key)) {
+                    if (!kpValues[key]) {
+                        kpValues[key] = [];
                     }
+                    kpValues[key].push(kpVal);
                 }
             }
         }
 
         // ============================================================
-        // 5. COMBINA I DATI (Versione Allineata al 100% in UTC)
+        // 5. COMBINA I DATI (Allineamento UTC perfetto)
         // ============================================================
         const combined = [];
         const now = new Date();
         
         for (let i = 30; i >= 0; i--) {
-            // Genera una data a mezzanotte UTC spaccata per eliminare sfasamenti orari locali
+            // Genera la data a mezzanotte UTC spaccata per combaciare perfettamente con le chiavi NOAA
             const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - i));
             const key = d.toISOString().slice(0, 10);
             
