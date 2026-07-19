@@ -1128,15 +1128,36 @@
             }
         });
 
-        // 4. Elabora Kp (solo dal feed standard)
+                // ============================================================
+        // 4. ELABORA KP (Risolto: supporta oggetti e corregge date mobile)
+        // ============================================================
         const kpValues = {};
-        for (let i = 1; i < kpRes.length; i++) {
+        
+        // Se l'API restituisce un array di array classico, saltiamo l'header (i=1), 
+        // se restituisce un array di oggetti partiamo dall'inizio (i=0)
+        const startIndex = (kpRes.length > 0 && Array.isArray(kpRes[0])) ? 1 : 0;
+
+        for (let i = startIndex; i < kpRes.length; i++) {
             const row = kpRes[i];
-            if (!row || row.length < 2) continue;
-            const dateStr = row[0];
-            const kpVal = parseFloat(row[1]);
+            if (!row) continue;
+
+            // Estrazione flessibile: prova prima come oggetto, poi come array
+            let dateStr = row.time_tag || row[0];
+            let kpStr = row.kp || row[1];
+
+            if (!dateStr || kpStr === undefined) continue;
+
+            const kpVal = parseFloat(kpStr);
             if (isNaN(kpVal)) continue;
+
+            // Compatibilità Mobile: sostituisce lo spazio con 'T' per lo standard ISO 8601
+            if (typeof dateStr === 'string') {
+                dateStr = dateStr.replace(' ', 'T');
+            }
+
             const date = new Date(dateStr);
+            if (isNaN(date.getTime())) continue; // Salta se la data non è valida
+
             const key = date.toISOString().slice(0, 10);
             if (!kpValues[key]) {
                 kpValues[key] = [];
@@ -1144,18 +1165,28 @@
             kpValues[key].push(kpVal);
         }
 
-        // 5. Combina i dati
+
+                // ============================================================
+        // 5. COMBINA I DATI (Versione Completa e Sicura)
+        // ============================================================
         const combined = [];
         const now = new Date();
+        
+        // Ciclo a ritroso degli ultimi 30 giorni
         for (let i = 30; i >= 0; i--) {
-            const d = new Date(now);
-            d.setDate(d.getDate() - i);
-            const key = d.toISOString().slice(0, 10);
+            const d = new Date();
+            d.setUTCDate(now.getUTCDate() - i); // Forza l'uso del giorno UTC per evitare sfasamenti di fuso orario
+            const key = d.toISOString().slice(0, 10); // Formato "YYYY-MM-DD"
+            
+            // Calcola la media del Kp per quel giorno
             const kpArray = kpValues[key] || [];
             const avgKp = kpArray.length > 0 ?
                 Math.round(kpArray.reduce((a, b) => a + b, 0) / kpArray.length * 10) / 10 :
-                0;
+                0; 
+
+            // Recupera i terremoti di quel giorno (o imposta i valori di default se vuoto)
             const quakeMatch = quakeByDay[key] || { count: 0, maxMag: 0, events: [] };
+            
             combined.push({
                 date: d,
                 kp: avgKp,
@@ -1165,19 +1196,11 @@
             });
         }
 
-        const hasData = combined.some(d => d.kp > 0 || d.quakes > 0);
-        if (!hasData) {
-            throw new Error('Nessun dato valido');
-        }
+        // ============================================================
+        // FINE DELLA FUNZIONE: Qui sotto tieni quello che avevi già!
+        // ============================================================
+        // Esempio: se avevi "return combined;" o "setChartData(combined);", lascialo qui.
 
-        console.log(`✅ Dati caricati: ${combined.length} giorni`);
-        return combined;
-
-    } catch (error) {
-        console.warn('⚠️ Errore:', error.message);
-        return null;
-    }
-}   
 
          
         // ============================================================
