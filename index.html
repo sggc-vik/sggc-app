@@ -1081,7 +1081,7 @@
 
            
                   
-            async function fetchRealData() {
+           async function fetchRealData() {
     try {
         console.log('📡 Caricamento dati reali...');
 
@@ -1090,9 +1090,9 @@
             'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_month.geojson'
         );
 
-        // 2. NOAA Kp Index (solo feed standard, più veloce)
+        // 2. NOAA Kp Index (CORRETTO: URL ufficiale di NOAA)
         const kpRes = await fetchWithProxy(
-            'https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json'
+            'https://services.swpc.noaa.gov/products/json/planetary-k-index.json'
         );
 
         if (!quakeData.features || quakeData.features.length === 0) {
@@ -1130,15 +1130,16 @@
         });
 
         // ============================================================
-        // 4. ELABORA KP (Risolto: Taglio stringa diretto senza trappole regex)
+        // 4. ELABORA KP (Risolto: Lettura della matrice ufficiale NOAA)
         // ============================================================
         const kpValues = {};
+        const startIndex = (kpRes.length > 0 && Array.isArray(kpRes[0])) ? 1 : 0;
 
-        for (let i = 0; i < kpRes.length; i++) {
+        for (let i = startIndex; i < kpRes.length; i++) {
             const row = kpRes[i];
             if (!row) continue;
 
-            // Supporta sia array di array che oggetti dall'API NOAA
+            // Gestisce sia array di array (formato standard NOAA) che eventuali oggetti
             let dateStr = row.time_tag || row[0];
             let kpStr = row.kp || row[1];
 
@@ -1148,11 +1149,9 @@
             if (isNaN(kpVal)) continue;
 
             if (typeof dateStr === 'string') {
-                // Estraiamo direttamente i primi 10 caratteri (es: "2026-07-19")
-                // Questo bypassa i bug di "Invalid Date" su mobile e le discrepanze sui secondi
+                // Taglio pulito anti-bug per i telefoni (prende solo "YYYY-MM-DD")
                 const key = dateStr.trim().slice(0, 10);
                 
-                // Semplice controllo formale per evitare l'intestazione della tabella ("time_tag")
                 if (/^\d{4}-\d{2}-\d{2}$/.test(key)) {
                     if (!kpValues[key]) {
                         kpValues[key] = [];
@@ -1169,7 +1168,6 @@
         const now = new Date();
         
         for (let i = 30; i >= 0; i--) {
-            // Genera la data a mezzanotte UTC spaccata per combaciare perfettamente con le chiavi NOAA
             const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - i));
             const key = d.toISOString().slice(0, 10);
             
@@ -1196,6 +1194,9 @@
         throw error;
     }
 }
+  
+
+         
 
              
          
