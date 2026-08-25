@@ -997,56 +997,47 @@
             return await res.json();
         }
 
-        // NOAA con proxy - thingproxy è il più stabile
-        async function fetchNoaaWithProxy() {
-            const originalUrl = 'https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json';
-            
-            // Proxy testati - thingproxy è il più affidabile al momento
-            const proxyList = [
-                `https://thingproxy.freeboard.io/fetch/${encodeURIComponent(originalUrl)}`,
-                `https://api.allorigins.win/raw?url=${encodeURIComponent(originalUrl)}`,
-                `https://corsproxy.io/?${encodeURIComponent(originalUrl)}`
-            ];
-
-            let lastError = null;
-
-            for (const proxyUrl of proxyList) {
-                try {
-                    console.log(`📡 NOAA: tentativo proxy ${proxyUrl.slice(0, 50)}...`);
-                    const res = await fetch(proxyUrl, { 
-                        signal: AbortSignal.timeout(15000)
-                    });
-                    
-                    if (!res.ok) {
-                        console.log(`⚠️ Proxy risponde con HTTP ${res.status}`);
-                        continue;
-                    }
-
-                    const text = await res.text();
-                    
-                    try {
-                        const json = JSON.parse(text);
-                        if (Array.isArray(json) || (typeof json === 'object' && json !== null)) {
-                            console.log(`✅ NOAA: proxy funzionante (JSON)`);
-                            return json;
-                        }
-                    } catch (e) {
-                        const lines = text.split('\n').filter(line => line.trim());
-                        if (lines.length > 1) {
-                            const parsed = lines.map(line => line.split(/,|;|\t/));
-                            console.log(`✅ NOAA: proxy funzionante (CSV, ${parsed.length} righe)`);
-                            return parsed;
-                        }
-                    }
-                } catch (e) {
-                    console.log(`⚠️ Proxy fallito:`, e.message);
-                    lastError = e;
-                    continue;
-                }
-            }
-
-            throw new Error(`Tutti i proxy NOAA falliti. Ultimo errore: ${lastError?.message || 'sconosciuto'}`);
+// NOAA con proxy personale Cloudflare Worker
+async function fetchNoaaWithProxy() {
+    const originalUrl = 'https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json';
+    
+    // IL TUO WORKER URL - METTI QUESTO!
+    const YOUR_WORKER_URL = 'https://sggc-proxy.rahovincenzo73.workers.dev';
+    
+    const proxyUrl = `${YOUR_WORKER_URL}?url=${encodeURIComponent(originalUrl)}`;
+    
+    console.log('📡 NOAA: chiamata al proxy personale...');
+    
+    try {
+        const res = await fetch(proxyUrl, { 
+            signal: AbortSignal.timeout(15000)
+        });
+        
+        if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`);
         }
+
+        const text = await res.text();
+        
+        try {
+            const json = JSON.parse(text);
+            if (Array.isArray(json) || (typeof json === 'object' && json !== null)) {
+                console.log('✅ NOAA: proxy personale funzionante (JSON)');
+                return json;
+            }
+        } catch (e) {
+            const lines = text.split('\n').filter(line => line.trim());
+            if (lines.length > 1) {
+                const parsed = lines.map(line => line.split(/,|;|\t/));
+                console.log('✅ NOAA: proxy personale funzionante (CSV)');
+                return parsed;
+            }
+        }
+    } catch (e) {
+        console.error('❌ NOAA: proxy personale fallito:', e.message);
+        throw e;
+    }
+}
 
         // ============================================================
         // PARSER KP UNIVERSALE
