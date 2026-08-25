@@ -985,7 +985,7 @@
         }
 
         // ============================================================
-        // FETCH DATI REALI - VERSIONE CORRETTA
+        // FETCH DATI REALI - VERSIONE CON THINGPROXY
         // ============================================================
         
         // USGS supporta CORS nativamente - chiamata diretta
@@ -997,15 +997,15 @@
             return await res.json();
         }
 
-        // NOAA richiede proxy - con fallback multipli
+        // NOAA con proxy - thingproxy è il più stabile
         async function fetchNoaaWithProxy() {
             const originalUrl = 'https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json';
             
-            // Lista proxy testati e funzionanti
+            // Proxy testati - thingproxy è il più affidabile al momento
             const proxyList = [
+                `https://thingproxy.freeboard.io/fetch/${encodeURIComponent(originalUrl)}`,
                 `https://api.allorigins.win/raw?url=${encodeURIComponent(originalUrl)}`,
-                `https://corsproxy.io/?${encodeURIComponent(originalUrl)}`,
-                `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(originalUrl)}`
+                `https://corsproxy.io/?${encodeURIComponent(originalUrl)}`
             ];
 
             let lastError = null;
@@ -1013,28 +1013,24 @@
             for (const proxyUrl of proxyList) {
                 try {
                     console.log(`📡 NOAA: tentativo proxy ${proxyUrl.slice(0, 50)}...`);
-                    const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(10000) });
+                    const res = await fetch(proxyUrl, { 
+                        signal: AbortSignal.timeout(15000)
+                    });
                     
                     if (!res.ok) {
                         console.log(`⚠️ Proxy risponde con HTTP ${res.status}`);
                         continue;
                     }
 
-                    // Leggi come testo per massima flessibilità
                     const text = await res.text();
                     
-                    // Prova a parsare come JSON
                     try {
                         const json = JSON.parse(text);
-                        // Se è un array o un oggetto con dati, restituiscilo
                         if (Array.isArray(json) || (typeof json === 'object' && json !== null)) {
                             console.log(`✅ NOAA: proxy funzionante (JSON)`);
                             return json;
                         }
                     } catch (e) {
-                        // Non è JSON, potrebbe essere CSV o altro
-                        console.log(`📄 NOAA: risposta non JSON, provo come CSV`);
-                        // Prova a processare come CSV
                         const lines = text.split('\n').filter(line => line.trim());
                         if (lines.length > 1) {
                             const parsed = lines.map(line => line.split(/,|;|\t/));
@@ -1059,18 +1055,15 @@
             const kpValues = {};
             let dataArray = [];
 
-            // Normalizza in array
             if (Array.isArray(kpRaw)) {
                 dataArray = kpRaw;
             } else if (typeof kpRaw === 'object' && kpRaw !== null) {
-                // Cerca un array annidato
                 for (const key in kpRaw) {
                     if (Array.isArray(kpRaw[key])) {
                         dataArray = kpRaw[key];
                         break;
                     }
                 }
-                // Se non trovato, converti in array
                 if (dataArray.length === 0) {
                     dataArray = [kpRaw];
                 }
@@ -1081,7 +1074,6 @@
                 return kpValues;
             }
 
-            // Determina se la prima riga è un'intestazione
             let startIdx = 0;
             const firstRow = dataArray[0];
             if (Array.isArray(firstRow)) {
@@ -1102,23 +1094,19 @@
                 let dateStr = '';
                 let kpStr = '';
 
-                // Caso: array
                 if (Array.isArray(row)) {
                     for (let j = 0; j < row.length; j++) {
                         const val = String(row[j]).trim();
                         if (!val) continue;
                         
-                        // Rileva data
                         if (/^\d{4}-\d{2}-\d{2}/.test(val) || /^\d{13,}/.test(val) || /^[A-Za-z]{3}\s/.test(val)) {
                             if (!dateStr) dateStr = val;
                         }
-                        // Rileva Kp (numero tra 0 e 10)
                         if (/^\d+\.?\d*$/.test(val) && parseFloat(val) >= 0 && parseFloat(val) <= 10) {
                             if (!kpStr) kpStr = val;
                         }
                     }
                 }
-                // Caso: oggetto
                 else if (typeof row === 'object' && row !== null) {
                     for (const key in row) {
                         const lowKey = key.toLowerCase();
@@ -1133,7 +1121,6 @@
                         }
                     }
                 }
-                // Caso: stringa (CSV)
                 else if (typeof row === 'string') {
                     const parts = row.split(/,|;|\t/);
                     for (const part of parts) {
@@ -1148,12 +1135,10 @@
                     }
                 }
 
-                // Se abbiamo data e Kp, salva
                 if (dateStr && kpStr) {
                     const kpVal = parseFloat(kpStr);
                     if (isNaN(kpVal) || kpVal < 0 || kpVal > 10) continue;
 
-                    // Normalizza data
                     let key = '';
                     let d = new Date(dateStr);
                     if (isNaN(d.getTime())) {
@@ -1187,7 +1172,6 @@
         async function fetchRealData() {
             console.log('🌍 Avvio caricamento dati reali...');
 
-            // 1. USGS - chiamata diretta (supporta CORS)
             let quakeJson;
             try {
                 quakeJson = await fetchUsgsDirect();
@@ -1197,7 +1181,6 @@
                 throw new Error(`USGS: ${e.message}`);
             }
 
-            // 2. NOAA - con proxy
             let kpRaw;
             try {
                 kpRaw = await fetchNoaaWithProxy();
@@ -1207,14 +1190,11 @@
                 throw new Error(`NOAA: ${e.message}`);
             }
 
-            // 3. Parser Kp
             const kpValues = parseKpData(kpRaw);
             if (Object.keys(kpValues).length === 0) {
-                console.warn('⚠️ Nessun dato Kp estratto, uso fallback parziale');
-                // Continua lo stesso, ma con Kp a 0 per tutti i giorni
+                console.warn('⚠️ Nessun dato Kp estratto');
             }
 
-            // 4. Elabora terremoti
             const quakeEvents = quakeJson.features || [];
             const quakeByDay = {};
             quakeEvents.forEach(f => {
@@ -1240,7 +1220,6 @@
                 }
             });
 
-            // 5. Combina i dati (ultimi 30 giorni)
             const combined = [];
             const now = new Date();
             
@@ -1252,7 +1231,6 @@
                 ));
                 const key = d.toISOString().slice(0, 10);
                 
-                // Kp - media del giorno se disponibile, altrimenti 0
                 const kpArray = kpValues[key] || [];
                 let avgKp = 0;
                 if (kpArray.length > 0) {
@@ -1270,7 +1248,6 @@
                 });
             }
 
-            // Verifica che abbiamo dati
             const hasQuakes = combined.some(d => d.quakes > 0);
             const hasKp = combined.some(d => d.kp > 0);
             
@@ -1646,7 +1623,6 @@
                 `;
                 circle.bindPopup(popupContent);
 
-                // Cerchio "tappo" invisibile per facilitare il tocco su mobile
                 const hitRadius = Math.max(radius * 2.5, 12);
                 const hitCircle = L.circleMarker([e.lat, e.lon], {
                     radius: hitRadius,
@@ -2767,7 +2743,7 @@
 
         console.log('🌍 Osservatorio SGGC — Monitoraggio Anomalie');
         console.log('📡 USGS: chiamata diretta (CORS supportato)');
-        console.log('📡 NOAA: 3 proxy di fallback');
+        console.log('📡 NOAA: thingproxy + 2 fallback');
         console.log('⚠️ Fallback automatico a dati simulati solo se TUTTO fallisce');
         console.log('📱 Ottimizzata per touch con rilevamento anomalie in tempo reale');
         console.log('🔔 Notifiche attive per anomalie critiche');
