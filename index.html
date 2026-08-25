@@ -95,12 +95,8 @@
             animation: spin 0.8s ease-in-out;
         }
         @keyframes spin {
-            0% {
-                transform: rotate(0deg);
-            }
-            100% {
-                transform: rotate(360deg);
-            }
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
         .mode-toggle {
             display: flex;
@@ -197,24 +193,12 @@
             border-radius: 12px;
             font-weight: 600;
         }
-        .kpi-card .value.green {
-            color: #4ade80;
-        }
-        .kpi-card .value.blue {
-            color: #60a5fa;
-        }
-        .kpi-card .value.orange {
-            color: #fb923c;
-        }
-        .kpi-card .value.purple {
-            color: #a78bfa;
-        }
-        .kpi-card .value.red {
-            color: #ef4444;
-        }
-        .kpi-card .value.yellow {
-            color: #facc15;
-        }
+        .kpi-card .value.green { color: #4ade80; }
+        .kpi-card .value.blue { color: #60a5fa; }
+        .kpi-card .value.orange { color: #fb923c; }
+        .kpi-card .value.purple { color: #a78bfa; }
+        .kpi-card .value.red { color: #ef4444; }
+        .kpi-card .value.yellow { color: #facc15; }
         .status-normal {
             background: #064e3b;
             color: #4ade80;
@@ -233,13 +217,8 @@
             animation: pulse-red 1.5s infinite;
         }
         @keyframes pulse-red {
-            0%,
-            100% {
-                opacity: 1;
-            }
-            50% {
-                opacity: 0.5;
-            }
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
         }
         .stats-panel {
             background: #111a24;
@@ -278,15 +257,9 @@
             font-weight: 700;
             margin-top: 2px;
         }
-        .stats-item .stat-value.positive {
-            color: #4ade80;
-        }
-        .stats-item .stat-value.negative {
-            color: #ef4444;
-        }
-        .stats-item .stat-value.neutral {
-            color: #facc15;
-        }
+        .stats-item .stat-value.positive { color: #4ade80; }
+        .stats-item .stat-value.negative { color: #ef4444; }
+        .stats-item .stat-value.neutral { color: #facc15; }
         .stats-status {
             margin-top: 8px;
             padding: 8px 12px;
@@ -336,12 +309,8 @@
             touch-action: none;
         }
         @media(min-width:768px) {
-            .chart-container {
-                height: 280px;
-            }
-            .stats-grid {
-                grid-template-columns: repeat(4, 1fr);
-            }
+            .chart-container { height: 280px; }
+            .stats-grid { grid-template-columns: repeat(4, 1fr); }
         }
         .lag-controls {
             margin-top: 12px;
@@ -621,59 +590,23 @@
             text-decoration: none;
         }
         @media(min-width:640px) {
-            body {
-                padding: 24px
-            }
-            .kpi-grid {
-                grid-template-columns: repeat(4, 1fr);
-                gap: 16px
-            }
-            .kpi-card {
-                padding: 16px 20px
-            }
-            .kpi-card .value {
-                font-size: 28px
-            }
-            .filters-panel {
-                flex-direction: row;
-                flex-wrap: wrap;
-                align-items: center
-            }
-            .filter-group {
-                flex: 1;
-                min-width: 140px
-            }
-            .footer {
-                flex-direction: row;
-                justify-content: space-between;
-                text-align: left
-            }
-            .sggc-note {
-                text-align: left;
-            }
-            .stats-grid {
-                grid-template-columns: repeat(4, 1fr);
-            }
+            body { padding: 24px; }
+            .kpi-grid { grid-template-columns: repeat(4, 1fr); gap: 16px; }
+            .kpi-card { padding: 16px 20px; }
+            .kpi-card .value { font-size: 28px; }
+            .filters-panel { flex-direction: row; flex-wrap: wrap; align-items: center; }
+            .filter-group { flex: 1; min-width: 140px; }
+            .footer { flex-direction: row; justify-content: space-between; text-align: left; }
+            .sggc-note { text-align: left; }
+            .stats-grid { grid-template-columns: repeat(4, 1fr); }
         }
         @media(max-width:380px) {
-            .header h1 {
-                font-size: 17px
-            }
-            .kpi-card .value {
-                font-size: 20px
-            }
-            .kpi-card .label {
-                font-size: 9px
-            }
-            .chart-container {
-                height: 180px
-            }
-            .stats-grid {
-                grid-template-columns: 1fr 1fr;
-            }
-            #earthquakeMap {
-                height: 280px;
-            }
+            .header h1 { font-size: 17px; }
+            .kpi-card .value { font-size: 20px; }
+            .kpi-card .label { font-size: 9px; }
+            .chart-container { height: 180px; }
+            .stats-grid { grid-template-columns: 1fr 1fr; }
+            #earthquakeMap { height: 280px; }
         }
     </style>
 </head>
@@ -890,7 +823,7 @@
         };
 
         // ============================================================
-        // GENERA DATI FITTIZI (FALLBACK)
+        // GENERA DATI FITTIZI (FALLBACK - solo se tutto fallisce)
         // ============================================================
         function generateFallbackData() {
             const now = new Date();
@@ -1052,187 +985,303 @@
         }
 
         // ============================================================
-        // FETCH DATI REALI
+        // FETCH DATI REALI - VERSIONE CORRETTA
         // ============================================================
-        async function fetchWithProxy(url) {
-            const proxies = [
-                `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-                `https://corsproxy.io/?${encodeURIComponent(url)}`,
-                `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
+        
+        // USGS supporta CORS nativamente - chiamata diretta
+        async function fetchUsgsDirect() {
+            const url = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_month.geojson';
+            console.log('📡 USGS: chiamata diretta a', url);
+            const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+            if (!res.ok) throw new Error(`USGS HTTP ${res.status}`);
+            return await res.json();
+        }
+
+        // NOAA richiede proxy - con fallback multipli
+        async function fetchNoaaWithProxy() {
+            const originalUrl = 'https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json';
+            
+            // Lista proxy testati e funzionanti
+            const proxyList = [
+                `https://api.allorigins.win/raw?url=${encodeURIComponent(originalUrl)}`,
+                `https://corsproxy.io/?${encodeURIComponent(originalUrl)}`,
+                `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(originalUrl)}`
             ];
 
-            for (const proxyUrl of proxies) {
+            let lastError = null;
+
+            for (const proxyUrl of proxyList) {
                 try {
-                    console.log(`📡 Tentativo proxy: ${proxyUrl.slice(0, 40)}...`);
-                    const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(8000) });
-                    if (!res.ok) continue;
-                    const data = await res.json();
-                    if (data && (Array.isArray(data) || data.features)) {
-                        console.log(`✅ Proxy funzionante: ${proxyUrl.slice(0, 40)}...`);
-                        return data;
+                    console.log(`📡 NOAA: tentativo proxy ${proxyUrl.slice(0, 50)}...`);
+                    const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(10000) });
+                    
+                    if (!res.ok) {
+                        console.log(`⚠️ Proxy risponde con HTTP ${res.status}`);
+                        continue;
+                    }
+
+                    // Leggi come testo per massima flessibilità
+                    const text = await res.text();
+                    
+                    // Prova a parsare come JSON
+                    try {
+                        const json = JSON.parse(text);
+                        // Se è un array o un oggetto con dati, restituiscilo
+                        if (Array.isArray(json) || (typeof json === 'object' && json !== null)) {
+                            console.log(`✅ NOAA: proxy funzionante (JSON)`);
+                            return json;
+                        }
+                    } catch (e) {
+                        // Non è JSON, potrebbe essere CSV o altro
+                        console.log(`📄 NOAA: risposta non JSON, provo come CSV`);
+                        // Prova a processare come CSV
+                        const lines = text.split('\n').filter(line => line.trim());
+                        if (lines.length > 1) {
+                            const parsed = lines.map(line => line.split(/,|;|\t/));
+                            console.log(`✅ NOAA: proxy funzionante (CSV, ${parsed.length} righe)`);
+                            return parsed;
+                        }
                     }
                 } catch (e) {
-                    console.log(`⚠️ Proxy fallito, provo il prossimo...`);
+                    console.log(`⚠️ Proxy fallito:`, e.message);
+                    lastError = e;
                     continue;
                 }
             }
-            throw new Error('Nessun proxy funzionante');
+
+            throw new Error(`Tutti i proxy NOAA falliti. Ultimo errore: ${lastError?.message || 'sconosciuto'}`);
         }
-
-           
-                   
-            async function fetchRealData() {
-    try {
-        console.log('📡 Caricamento dati reali...');
-
-        // 1. USGS Earthquakes
-        const quakeData = await fetchWithProxy(
-            'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_month.geojson'
-        );
-
-        // 2. NOAA Kp Index (URL originale)
-        const kpRes = await fetchWithProxy(
-            'https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json'
-        );
-
-        if (!quakeData.features || quakeData.features.length === 0) {
-            throw new Error('USGS: nessun terremoto trovato');
-        }
-
-        if (!kpRes) {
-            throw new Error('NOAA: nessun dato ricevuto');
-        }
-
-        // 3. Elabora terremoti
-        const quakeEvents = quakeData.features || [];
-        const quakeByDay = {};
-        quakeEvents.forEach(f => {
-            if (!f.properties) return;
-            const d = new Date(f.properties.time);
-            const key = d.toISOString().slice(0, 10);
-            if (!quakeByDay[key]) {
-                quakeByDay[key] = { count: 0, maxMag: 0, events: [] };
-            }
-            quakeByDay[key].count++;
-            const mag = f.properties.mag || 0;
-            if (mag > quakeByDay[key].maxMag) {
-                quakeByDay[key].maxMag = mag;
-            }
-            if (f.geometry && f.geometry.coordinates) {
-                const coords = f.geometry.coordinates;
-                quakeByDay[key].events.push({
-                    lat: coords[1],
-                    lon: coords[0],
-                    mag: mag,
-                    time: d
-                });
-            }
-        });
 
         // ============================================================
-        // 4. ELABORA KP (Parser Iper-Corazzato ad Adattamento Dinamico)
+        // PARSER KP UNIVERSALE
         // ============================================================
-        const kpValues = {};
-        let actualKpData = kpRes;
+        function parseKpData(kpRaw) {
+            const kpValues = {};
+            let dataArray = [];
 
-        // FIX 1: Se il proxy su mobile restituisce una stringa di testo grezza, la parsa in JSON
-        if (typeof actualKpData === 'string') {
-            try {
-                actualKpData = JSON.parse(actualKpData);
-            } catch (e) {
-                console.error("Errore nel parsing forzato della stringa Kp:", e);
-            }
-        }
-
-        // FIX 2: Se il proxy ha incapsulato l'array in un oggetto (es. { contents: [...] }), estrae l'array interno
-        if (actualKpData && !Array.isArray(actualKpData) && typeof actualKpData === 'object') {
-            for (const key in actualKpData) {
-                if (Array.isArray(actualKpData[key])) {
-                    actualKpData = actualKpData[key];
-                    break;
+            // Normalizza in array
+            if (Array.isArray(kpRaw)) {
+                dataArray = kpRaw;
+            } else if (typeof kpRaw === 'object' && kpRaw !== null) {
+                // Cerca un array annidato
+                for (const key in kpRaw) {
+                    if (Array.isArray(kpRaw[key])) {
+                        dataArray = kpRaw[key];
+                        break;
+                    }
+                }
+                // Se non trovato, converti in array
+                if (dataArray.length === 0) {
+                    dataArray = [kpRaw];
                 }
             }
-        }
 
-        // Processa i dati solo se l'estrazione ha prodotto un array valido
-        if (Array.isArray(actualKpData)) {
-            for (let i = 0; i < actualKpData.length; i++) {
-                const row = actualKpData[i];
+            if (dataArray.length === 0) {
+                console.warn('⚠️ Nessun dato Kp da processare');
+                return kpValues;
+            }
+
+            // Determina se la prima riga è un'intestazione
+            let startIdx = 0;
+            const firstRow = dataArray[0];
+            if (Array.isArray(firstRow)) {
+                const headerIndicators = firstRow.some(cell => 
+                    typeof cell === 'string' && /time|date|tag|kp|est/i.test(cell)
+                );
+                if (headerIndicators) startIdx = 1;
+            } else if (typeof firstRow === 'string') {
+                if (/time|date|kp/i.test(firstRow)) startIdx = 1;
+            }
+
+            console.log(`📊 Processo ${dataArray.length} righe Kp (da riga ${startIdx})`);
+
+            for (let i = startIdx; i < dataArray.length; i++) {
+                const row = dataArray[i];
                 if (!row) continue;
 
-                let dateStr = "";
-                let kpStr = "";
+                let dateStr = '';
+                let kpStr = '';
 
-                // FIX 3: Estrazione dati agnostica (funziona con Array, Oggetti o CSV)
+                // Caso: array
                 if (Array.isArray(row)) {
-                    dateStr = String(row[0] || "");
-                    kpStr = String(row[1] || "");
-                } else if (typeof row === 'object') {
-                    // Cerca le proprietà ignorando la formattazione delle chiavi del proxy
-                    for (const k in row) {
-                        const lowK = k.toLowerCase();
-                        if (lowK.includes('time') || lowK.includes('tag') || lowK.includes('date')) {
-                            dateStr = String(row[k] || "");
+                    for (let j = 0; j < row.length; j++) {
+                        const val = String(row[j]).trim();
+                        if (!val) continue;
+                        
+                        // Rileva data
+                        if (/^\d{4}-\d{2}-\d{2}/.test(val) || /^\d{13,}/.test(val) || /^[A-Za-z]{3}\s/.test(val)) {
+                            if (!dateStr) dateStr = val;
                         }
-                        if (lowK === 'kp' || lowK === 'value' || lowK === 'val') {
-                            kpStr = String(row[k] || "");
+                        // Rileva Kp (numero tra 0 e 10)
+                        if (/^\d+\.?\d*$/.test(val) && parseFloat(val) >= 0 && parseFloat(val) <= 10) {
+                            if (!kpStr) kpStr = val;
                         }
                     }
-                } else if (typeof row === 'string') {
-                    const parts = row.split(/,|;/);
-                    if (parts.length >= 2) {
-                        dateStr = parts[0];
-                        kpStr = parts[1];
+                }
+                // Caso: oggetto
+                else if (typeof row === 'object' && row !== null) {
+                    for (const key in row) {
+                        const lowKey = key.toLowerCase();
+                        const val = String(row[key]).trim();
+                        if (!val) continue;
+                        
+                        if (lowKey.includes('time') || lowKey.includes('date') || lowKey.includes('tag')) {
+                            if (!dateStr) dateStr = val;
+                        }
+                        if (lowKey === 'kp' || lowKey === 'value' || lowKey === 'est' || lowKey === 'val') {
+                            if (!kpStr) kpStr = val;
+                        }
+                    }
+                }
+                // Caso: stringa (CSV)
+                else if (typeof row === 'string') {
+                    const parts = row.split(/,|;|\t/);
+                    for (const part of parts) {
+                        const val = part.trim();
+                        if (!val) continue;
+                        if (/^\d{4}-\d{2}-\d{2}/.test(val) || /^\d{13,}/.test(val)) {
+                            if (!dateStr) dateStr = val;
+                        }
+                        if (/^\d+\.?\d*$/.test(val) && parseFloat(val) >= 0 && parseFloat(val) <= 10) {
+                            if (!kpStr) kpStr = val;
+                        }
                     }
                 }
 
-                const kpVal = parseFloat(kpStr);
-                if (!dateStr || isNaN(kpVal)) continue; // Salta intestazioni di testo o righe corrotte
+                // Se abbiamo data e Kp, salva
+                if (dateStr && kpStr) {
+                    const kpVal = parseFloat(kpStr);
+                    if (isNaN(kpVal) || kpVal < 0 || kpVal > 10) continue;
 
-                // Isola la chiave del giorno nel formato YYYY-MM-DD
-                const key = dateStr.trim().slice(0, 10);
-                if (/^\d{4}-\d{2}-\d{2}$/.test(key)) {
-                    if (!kpValues[key]) {
-                        kpValues[key] = [];
+                    // Normalizza data
+                    let key = '';
+                    let d = new Date(dateStr);
+                    if (isNaN(d.getTime())) {
+                        const match = dateStr.match(/(\d{4})-(\d{2})-(\d{2})/);
+                        if (match) {
+                            d = new Date(Date.UTC(
+                                parseInt(match[1]),
+                                parseInt(match[2]) - 1,
+                                parseInt(match[3])
+                            ));
+                        }
                     }
-                    kpValues[key].push(kpVal);
+                    if (!isNaN(d.getTime())) {
+                        key = d.toISOString().slice(0, 10);
+                    }
+
+                    if (key && /^\d{4}-\d{2}-\d{2}$/.test(key)) {
+                        if (!kpValues[key]) kpValues[key] = [];
+                        kpValues[key].push(kpVal);
+                    }
                 }
             }
+
+            console.log(`📊 Estratti ${Object.keys(kpValues).length} giorni di dati Kp`);
+            return kpValues;
         }
 
         // ============================================================
-        // 5. COMBINA I DATI (Allineamento UTC strutturale)
+        // FETCH DATI REALI - FUNZIONE PRINCIPALE
         // ============================================================
-        const combined = [];
-        const now = new Date();
-        
-        for (let i = 30; i >= 0; i--) {
-            const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - i));
-            const key = d.toISOString().slice(0, 10);
-            
-            const kpArray = kpValues[key] || [];
-            const avgKp = kpArray.length > 0 ?
-                Math.round(kpArray.reduce((a, b) => a + b, 0) / kpArray.length * 10) / 10 :
-                0; 
+        async function fetchRealData() {
+            console.log('🌍 Avvio caricamento dati reali...');
 
-            const quakeMatch = quakeByDay[key] || { count: 0, maxMag: 0, events: [] };
-            
-            combined.push({
-                date: d,
-                kp: avgKp,
-                quakes: quakeMatch.count,
-                maxMag: quakeMatch.maxMag || 0,
-                events: quakeMatch.events || []
+            // 1. USGS - chiamata diretta (supporta CORS)
+            let quakeJson;
+            try {
+                quakeJson = await fetchUsgsDirect();
+                console.log(`✅ USGS: ${quakeJson.features?.length || 0} terremoti trovati`);
+            } catch (e) {
+                console.error('❌ USGS fallito:', e.message);
+                throw new Error(`USGS: ${e.message}`);
+            }
+
+            // 2. NOAA - con proxy
+            let kpRaw;
+            try {
+                kpRaw = await fetchNoaaWithProxy();
+                console.log('✅ NOAA: dati ricevuti');
+            } catch (e) {
+                console.error('❌ NOAA fallito:', e.message);
+                throw new Error(`NOAA: ${e.message}`);
+            }
+
+            // 3. Parser Kp
+            const kpValues = parseKpData(kpRaw);
+            if (Object.keys(kpValues).length === 0) {
+                console.warn('⚠️ Nessun dato Kp estratto, uso fallback parziale');
+                // Continua lo stesso, ma con Kp a 0 per tutti i giorni
+            }
+
+            // 4. Elabora terremoti
+            const quakeEvents = quakeJson.features || [];
+            const quakeByDay = {};
+            quakeEvents.forEach(f => {
+                if (!f.properties) return;
+                const d = new Date(f.properties.time);
+                const key = d.toISOString().slice(0, 10);
+                if (!quakeByDay[key]) {
+                    quakeByDay[key] = { count: 0, maxMag: 0, events: [] };
+                }
+                quakeByDay[key].count++;
+                const mag = f.properties.mag || 0;
+                if (mag > quakeByDay[key].maxMag) {
+                    quakeByDay[key].maxMag = mag;
+                }
+                if (f.geometry && f.geometry.coordinates) {
+                    const coords = f.geometry.coordinates;
+                    quakeByDay[key].events.push({
+                        lat: coords[1],
+                        lon: coords[0],
+                        mag: mag,
+                        time: new Date(f.properties.time)
+                    });
+                }
             });
+
+            // 5. Combina i dati (ultimi 30 giorni)
+            const combined = [];
+            const now = new Date();
+            
+            for (let i = 30; i >= 0; i--) {
+                const d = new Date(Date.UTC(
+                    now.getUTCFullYear(),
+                    now.getUTCMonth(),
+                    now.getUTCDate() - i
+                ));
+                const key = d.toISOString().slice(0, 10);
+                
+                // Kp - media del giorno se disponibile, altrimenti 0
+                const kpArray = kpValues[key] || [];
+                let avgKp = 0;
+                if (kpArray.length > 0) {
+                    avgKp = Math.round(kpArray.reduce((a, b) => a + b, 0) / kpArray.length * 10) / 10;
+                }
+                
+                const quakeMatch = quakeByDay[key] || { count: 0, maxMag: 0, events: [] };
+                
+                combined.push({
+                    date: d,
+                    kp: avgKp,
+                    quakes: quakeMatch.count,
+                    maxMag: quakeMatch.maxMag || 0,
+                    events: quakeMatch.events || []
+                });
+            }
+
+            // Verifica che abbiamo dati
+            const hasQuakes = combined.some(d => d.quakes > 0);
+            const hasKp = combined.some(d => d.kp > 0);
+            
+            console.log(`📊 Combinati: ${combined.length} giorni, terremoti: ${hasQuakes ? '✅' : '❌'}, Kp: ${hasKp ? '✅' : '❌'}`);
+
+            if (!hasQuakes) {
+                throw new Error('Nessun terremoto trovato nei dati USGS');
+            }
+
+            return combined;
         }
-
-        return combined;
-
-    } catch (error) {
-        console.error('Errore nel caricamento dati reali:', error);
-        throw error;
-    }
-}
 
         // ============================================================
         // CARICA DATI
@@ -1245,6 +1294,7 @@
             document.getElementById('dataSource').textContent = '📡 Caricamento dati reali...';
 
             try {
+                console.log('🔄 Tentativo caricamento dati reali...');
                 const realData = await fetchRealData();
 
                 if (realData && realData.length > 0) {
@@ -1252,20 +1302,17 @@
                     state.usingFallback = false;
                     document.getElementById('dataSource').innerHTML = '📡 Dati: <span class="data-source">USGS/NOAA (reali)</span>';
                     document.getElementById('statusDot').className = 'status-dot online';
-                    console.log('✅ Dati reali caricati con successo');
+                    console.log('✅ Dati reali caricati con successo!');
                 } else {
-                    state.data = generateFallbackData();
-                    state.usingFallback = true;
-                    document.getElementById('dataSource').innerHTML = '⚠️ Dati: <span class="data-source fallback">SIMULATI (fallback)</span>';
-                    document.getElementById('statusDot').className = 'status-dot fallback';
-                    console.log('⚠️ Usando dati fittizi come fallback');
+                    throw new Error('Dati reali vuoti');
                 }
             } catch (error) {
+                console.error('❌ Errore caricamento dati reali:', error);
                 state.data = generateFallbackData();
                 state.usingFallback = true;
-                document.getElementById('dataSource').innerHTML = '⚠️ Dati: <span class="data-source fallback">SIMULATI (errore)</span>';
+                document.getElementById('dataSource').innerHTML = '⚠️ Dati: <span class="data-source fallback">SIMULATI (fallback)</span>';
                 document.getElementById('statusDot').className = 'status-dot fallback';
-                console.warn('⚠️ Errore, usando dati fittizi:', error.message);
+                console.warn('⚠️ Usando dati fittizi come fallback');
             }
 
             updateAll();
@@ -1273,7 +1320,7 @@
             state.isLoading = false;
             document.getElementById('refreshBtn').classList.remove('spinning');
 
-            console.log(`✅ Dati caricati: ${state.data.length} giorni`);
+            console.log(`✅ UI aggiornata con ${state.data.length} giorni di dati`);
         }
 
         // ============================================================
@@ -1292,8 +1339,7 @@
             const kpAnomaly = getAnomalyLevel(last.kp, SGGC_HISTORICAL.kp);
             const quakeAnomaly = getAnomalyLevel(last.quakes, SGGC_HISTORICAL.quakes);
 
-            let title = '',
-                body = '';
+            let title = '', body = '';
             if (kpAnomaly.level === 'critical') {
                 title = '🔴 ALLERTA CRITICA Kp';
                 body = `Kp = ${last.kp.toFixed(1)} (oltre il 99° percentile storico!)`;
@@ -1428,81 +1474,67 @@
             });
         }
 
-          function updateChartData() {
-    if (!state.chartInstance) return;
-    const filtered = getFilteredData();
-    
-    if (filtered.length === 0) {
-        state.chartInstance.data.labels = [];
-        state.chartInstance.data.datasets[0].data = [];
-        state.chartInstance.data.datasets[1].data = [];
-        state.chartInstance.update();
-        return;
-    }
-    
-    // Le date sull'asse X sono quelle originali (dei terremoti)
-    const labels = filtered.map(d => d.date.toLocaleDateString('it-IT', { day: '2-digit', month: 'short' }));
-    
-    // Kp (già shiftato da getFilteredData)
-    const kpData = filtered.map(d => d.kp);
-    
-    // Terremoti (invariati)
-    const quakeData = filtered.map(d => d.quakes);
-    
-    state.chartInstance.data.labels = labels;
-    state.chartInstance.data.datasets[0].data = kpData;
-    state.chartInstance.data.datasets[1].data = quakeData;
-    state.chartInstance.update();
-}
-
-          function getFilteredData() {
-    // Filtra i dati per magnitudo e Kp
-    let filtered = state.data.filter(d =>
-        d.maxMag >= state.magThreshold &&
-        d.kp >= state.kpThreshold
-    );
-    
-    if (filtered.length === 0) return [];
-    
-    // Se il lag è 0, restituisci i dati così come sono
-    if (state.lagHours === 0) {
-        return filtered.map(d => ({ ...d }));
-    }
-    
-    // Costruisci un dizionario Kp per data
-    const kpByDate = {};
-    filtered.forEach(d => {
-        const key = d.date.toISOString().slice(0, 10);
-        kpByDate[key] = d.kp;
-    });
-    
-    const lagMilliseconds = state.lagHours * 3600000;
-    
-    // Crea i dati shiftati
-    const result = filtered.map(d => {
-        // Data originale (quella dei terremoti) - rimane invariata
-        const originalDate = d.date;
-        
-        // Data shiftata per cercare il Kp
-        const shiftedDate = new Date(originalDate.getTime() + lagMilliseconds);
-        const shiftedKey = shiftedDate.toISOString().slice(0, 10);
-        
-        // Cerca il Kp alla data shiftata
-        let shiftedKp = 0;
-        if (kpByDate[shiftedKey] !== undefined) {
-            shiftedKp = kpByDate[shiftedKey];
+        function updateChartData() {
+            if (!state.chartInstance) return;
+            const filtered = getFilteredData();
+            
+            if (filtered.length === 0) {
+                state.chartInstance.data.labels = [];
+                state.chartInstance.data.datasets[0].data = [];
+                state.chartInstance.data.datasets[1].data = [];
+                state.chartInstance.update();
+                return;
+            }
+            
+            const labels = filtered.map(d => d.date.toLocaleDateString('it-IT', { day: '2-digit', month: 'short' }));
+            const kpData = filtered.map(d => d.kp);
+            const quakeData = filtered.map(d => d.quakes);
+            
+            state.chartInstance.data.labels = labels;
+            state.chartInstance.data.datasets[0].data = kpData;
+            state.chartInstance.data.datasets[1].data = quakeData;
+            state.chartInstance.update();
         }
-        
-        return {
-            date: originalDate,      // Data originale (per le etichette)
-            kp: shiftedKp,           // Kp shiftato nel tempo
-            quakes: d.quakes,        // Terremoti invariati
-            maxMag: d.maxMag         // Magnitudo invariata
-        };
-    });
-    
-    return result;
-}
+
+        function getFilteredData() {
+            let filtered = state.data.filter(d =>
+                d.maxMag >= state.magThreshold &&
+                d.kp >= state.kpThreshold
+            );
+            
+            if (filtered.length === 0) return [];
+            
+            if (state.lagHours === 0) {
+                return filtered.map(d => ({ ...d }));
+            }
+            
+            const kpByDate = {};
+            filtered.forEach(d => {
+                const key = d.date.toISOString().slice(0, 10);
+                kpByDate[key] = d.kp;
+            });
+            
+            const lagMilliseconds = state.lagHours * 3600000;
+            
+            return filtered.map(d => {
+                const originalDate = d.date;
+                const shiftedDate = new Date(originalDate.getTime() + lagMilliseconds);
+                const shiftedKey = shiftedDate.toISOString().slice(0, 10);
+                
+                let shiftedKp = 0;
+                if (kpByDate[shiftedKey] !== undefined) {
+                    shiftedKp = kpByDate[shiftedKey];
+                }
+                
+                return {
+                    date: originalDate,
+                    kp: shiftedKp,
+                    quakes: d.quakes,
+                    maxMag: d.maxMag
+                };
+            });
+        }
+
         // ============================================================
         // MAPPA
         // ============================================================
@@ -1533,116 +1565,112 @@
             }, 500);
         }
 
-          function updateMap() {
-    if (!mapInstance) {
-        initMap();
-        setTimeout(updateMap, 500);
-        return;
-    }
+        function updateMap() {
+            if (!mapInstance) {
+                initMap();
+                setTimeout(updateMap, 500);
+                return;
+            }
 
-    if (!mapMarkersLayer) {
-        mapMarkersLayer = L.layerGroup().addTo(mapInstance);
-    }
+            if (!mapMarkersLayer) {
+                mapMarkersLayer = L.layerGroup().addTo(mapInstance);
+            }
 
-    mapMarkersLayer.clearLayers();
+            mapMarkersLayer.clearLayers();
 
-    const allEvents = [];
-    state.data.forEach(day => {
-        if (day.events && day.events.length > 0) {
-            day.events.forEach(e => {
-                if (e.lat && e.lon) {
-                    allEvents.push({
-                        lat: e.lat,
-                        lon: e.lon,
-                        mag: e.mag || 0,
-                        time: e.time || day.date
+            const allEvents = [];
+            state.data.forEach(day => {
+                if (day.events && day.events.length > 0) {
+                    day.events.forEach(e => {
+                        if (e.lat && e.lon) {
+                            allEvents.push({
+                                lat: e.lat,
+                                lon: e.lon,
+                                mag: e.mag || 0,
+                                time: e.time || day.date
+                            });
+                        }
                     });
                 }
             });
+
+            if (allEvents.length === 0) {
+                document.getElementById('mapCount').textContent = 'Nessun terremoto da mostrare';
+                return;
+            }
+
+            document.getElementById('mapCount').textContent = `${allEvents.length} terremoti visualizzati`;
+
+            allEvents.sort((a, b) => b.mag - a.mag);
+
+            function getColor(mag) {
+                if (mag >= 7.0) return '#ef4444';
+                if (mag >= 6.0) return '#fb923c';
+                if (mag >= 5.0) return '#facc15';
+                return '#4ade80';
+            }
+
+            function getRadius(mag) {
+                return Math.max(4, Math.min(18, 4 + (mag - 4.5) * 6));
+            }
+
+            let bounds = L.latLngBounds();
+
+            allEvents.forEach(e => {
+                const color = getColor(e.mag);
+                const radius = getRadius(e.mag);
+
+                const circle = L.circleMarker([e.lat, e.lon], {
+                    radius: radius,
+                    fillColor: color,
+                    color: '#0b0e14',
+                    weight: 1,
+                    opacity: 0.8,
+                    fillOpacity: 0.7,
+                    bubblingMouseEvents: false,
+                    interactive: true
+                });
+
+                const dateStr = e.time ? new Date(e.time).toLocaleDateString('it-IT') : 'Data sconosciuta';
+                const magStr = e.mag ? e.mag.toFixed(1) : 'N/A';
+
+                const popupContent = `
+                    <div style="font-size:13px;">
+                        <strong style="color:#e8edf5;">M${magStr}</strong>
+                        <span style="color:#94a3b8; font-size:11px;"> · ${dateStr}</span>
+                        <br>
+                        <span style="color:#94a3b8; font-size:11px;">
+                            Lat: ${e.lat.toFixed(2)}° · Lon: ${e.lon.toFixed(2)}°
+                        </span>
+                    </div>
+                `;
+                circle.bindPopup(popupContent);
+
+                // Cerchio "tappo" invisibile per facilitare il tocco su mobile
+                const hitRadius = Math.max(radius * 2.5, 12);
+                const hitCircle = L.circleMarker([e.lat, e.lon], {
+                    radius: hitRadius,
+                    color: 'transparent',
+                    fillColor: 'transparent',
+                    weight: 0,
+                    interactive: true,
+                    bubblingMouseEvents: false
+                });
+                hitCircle.bindPopup(popupContent);
+
+                mapMarkersLayer.addLayer(circle);
+                mapMarkersLayer.addLayer(hitCircle);
+
+                bounds.extend([e.lat, e.lon]);
+            });
+
+            if (allEvents.length > 0) {
+                mapInstance.fitBounds(bounds, {
+                    padding: [30, 30],
+                    maxZoom: 8
+                });
+            }
         }
-    });
-
-    if (allEvents.length === 0) {
-        document.getElementById('mapCount').textContent = 'Nessun terremoto da mostrare';
-        return;
-    }
-
-    document.getElementById('mapCount').textContent = `${allEvents.length} terremoti visualizzati`;
-
-    allEvents.sort((a, b) => b.mag - a.mag);
-
-    function getColor(mag) {
-        if (mag >= 7.0) return '#ef4444';
-        if (mag >= 6.0) return '#fb923c';
-        if (mag >= 5.0) return '#facc15';
-        return '#4ade80';
-    }
-
-    function getRadius(mag) {
-        return Math.max(4, Math.min(18, 4 + (mag - 4.5) * 6));
-    }
-
-    let bounds = L.latLngBounds();
-
-    allEvents.forEach(e => {
-        const color = getColor(e.mag);
-        const radius = getRadius(e.mag);
-
-        // === CERCHIO PRINCIPALE (VISIBILE) ===
-        const circle = L.circleMarker([e.lat, e.lon], {
-            radius: radius,
-            fillColor: color,
-            color: '#0b0e14',
-            weight: 1,
-            opacity: 0.8,
-            fillOpacity: 0.7,
-            bubblingMouseEvents: false, // ← Migliora la reattività al tocco
-            interactive: true
-        });
-
-        const dateStr = e.time ? new Date(e.time).toLocaleDateString('it-IT') : 'Data sconosciuta';
-        const magStr = e.mag ? e.mag.toFixed(1) : 'N/A';
-
-        // Popup per il cerchio principale
-        const popupContent = `
-            <div style="font-size:13px;">
-                <strong style="color:#e8edf5;">M${magStr}</strong>
-                <span style="color:#94a3b8; font-size:11px;"> · ${dateStr}</span>
-                <br>
-                <span style="color:#94a3b8; font-size:11px;">
-                    Lat: ${e.lat.toFixed(2)}° · Lon: ${e.lon.toFixed(2)}°
-                </span>
-            </div>
-        `;
-        circle.bindPopup(popupContent);
-
-        // === CERCHIO "TAPPO" INVISIBILE (per facilitare il tocco su mobile) ===
-        const hitRadius = Math.max(radius * 2.5, 12); // Almeno 12px per essere preso bene
-        const hitCircle = L.circleMarker([e.lat, e.lon], {
-            radius: hitRadius,
-            color: 'transparent',
-            fillColor: 'transparent',
-            weight: 0,
-            interactive: true,
-            bubblingMouseEvents: false
-        });
-        // Anche il cerchio invisibile ha lo stesso popup
-        hitCircle.bindPopup(popupContent);
-
-        // Aggiungi entrambi allo strato
-        mapMarkersLayer.addLayer(circle);
-        mapMarkersLayer.addLayer(hitCircle);
-
-        bounds.extend([e.lat, e.lon]);
-    });
-
-    if (allEvents.length > 0) {
-        mapInstance.fitBounds(bounds, {
-            padding: [30, 30],
-            maxZoom: 8
-        });
-    }
-}
 
         // ============================================================
         // UPDATE ALL
@@ -1958,117 +1986,107 @@
             return regions[region] || null;
         }
 
-         // ============================================================
-// ANALISI PER REGIONE (con soglia minima e IC)
-// ============================================================
-function runRegionAnalysis(regionName) {
-    if (!isProUser()) {
-        showProLock('Analisi per regione: ' + regionName);
-        return null;
-    }
+        function runRegionAnalysis(regionName) {
+            if (!isProUser()) {
+                showProLock('Analisi per regione: ' + regionName);
+                return null;
+            }
 
-    const region = getRegionFilter(regionName);
-    if (!region) return null;
+            const region = getRegionFilter(regionName);
+            if (!region) return null;
 
-    // Raccogli tutti gli eventi
-    const allEvents = [];
-    state.data.forEach(day => {
-        if (day.events && day.events.length > 0) {
-            day.events.forEach(e => {
-                allEvents.push({
-                    ...e,
-                    date: day.date,
-                    kp: day.kp
-                });
+            const allEvents = [];
+            state.data.forEach(day => {
+                if (day.events && day.events.length > 0) {
+                    day.events.forEach(e => {
+                        allEvents.push({
+                            ...e,
+                            date: day.date,
+                            kp: day.kp
+                        });
+                    });
+                }
             });
+
+            if (allEvents.length === 0) {
+                return {
+                    region: regionName,
+                    events: 0,
+                    r: null,
+                    p: null,
+                    fdr: null,
+                    ci: null,
+                    days: null,
+                    interpretations: ['⚠️ Dati insufficienti per la regione ' + regionName + ' (nessun evento).']
+                };
+            }
+
+            const regionEvents = allEvents.filter(e => {
+                const lat = e.lat;
+                const lon = e.lon;
+                return lat >= region.lat[0] && lat <= region.lat[1] &&
+                    lon >= region.lon[0] && lon <= region.lon[1];
+            });
+
+            const MIN_EVENTS = 15;
+
+            if (regionEvents.length < MIN_EVENTS) {
+                return {
+                    region: regionName,
+                    events: regionEvents.length,
+                    r: null,
+                    p: null,
+                    fdr: null,
+                    ci: null,
+                    days: null,
+                    interpretations: [`⚠️ Dati insufficienti per la regione ${regionName} (solo ${regionEvents.length} eventi, minimo richiesto: ${MIN_EVENTS}).`]
+                };
+            }
+
+            const dailyData = {};
+            regionEvents.forEach(e => {
+                const key = e.date.toISOString().slice(0, 10);
+                if (!dailyData[key]) {
+                    dailyData[key] = { kp: e.kp, count: 0 };
+                }
+                dailyData[key].count++;
+            });
+
+            const days = Object.keys(dailyData);
+            const kpData = days.map(d => dailyData[d].kp);
+            const quakeData = days.map(d => dailyData[d].count);
+
+            const corr = spearmanCorrelation(kpData, quakeData);
+            const fdr = Math.min(1, corr.p * 186);
+
+            function confidenceInterval(r, n) {
+                if (n < 3 || r === null || isNaN(r)) return { lower: null, upper: null };
+                const z = 0.5 * Math.log((1 + r) / (1 - r));
+                const se = 1 / Math.sqrt(n - 3);
+                const lower = Math.tanh(z - 1.96 * se);
+                const upper = Math.tanh(z + 1.96 * se);
+                return { lower: lower, upper: upper };
+            }
+
+            const ci = confidenceInterval(corr.r, regionEvents.length);
+
+            const interpretations = interpretResult(corr.r, corr.p, fdr, regionEvents.length);
+            
+            if (ci.lower !== null && ci.upper !== null) {
+                interpretations.push(`📊 IC 95%: [${ci.lower.toFixed(3)}, ${ci.upper.toFixed(3)}]`);
+            }
+
+            return {
+                region: regionName,
+                events: regionEvents.length,
+                days: days.length,
+                r: corr.r,
+                p: corr.p,
+                fdr: fdr,
+                ci: ci,
+                interpretations: interpretations
+            };
         }
-    });
-
-    if (allEvents.length === 0) {
-        return {
-            region: regionName,
-            events: 0,
-            r: null,
-            p: null,
-            fdr: null,
-            ci: null,
-            days: null,
-            interpretations: ['⚠️ Dati insufficienti per la regione ' + regionName + ' (nessun evento).']
-        };
-    }
-
-    // Filtra per regione
-    const regionEvents = allEvents.filter(e => {
-        const lat = e.lat;
-        const lon = e.lon;
-        return lat >= region.lat[0] && lat <= region.lat[1] &&
-            lon >= region.lon[0] && lon <= region.lon[1];
-    });
-
-    // === SOGLIA MINIMA DI EVENTI (MIN_EVENTS = 15) ===
-    const MIN_EVENTS = 15;
-
-    if (regionEvents.length < MIN_EVENTS) {
-        return {
-            region: regionName,
-            events: regionEvents.length,
-            r: null,
-            p: null,
-            fdr: null,
-            ci: null,
-            days: null,
-            interpretations: [`⚠️ Dati insufficienti per la regione ${regionName} (solo ${regionEvents.length} eventi, minimo richiesto: ${MIN_EVENTS}).`]
-        };
-    }
-
-    // Raggruppa per giorno
-    const dailyData = {};
-    regionEvents.forEach(e => {
-        const key = e.date.toISOString().slice(0, 10);
-        if (!dailyData[key]) {
-            dailyData[key] = { kp: e.kp, count: 0 };
-        }
-        dailyData[key].count++;
-    });
-
-    const days = Object.keys(dailyData);
-    const kpData = days.map(d => dailyData[d].kp);
-    const quakeData = days.map(d => dailyData[d].count);
-
-    const corr = spearmanCorrelation(kpData, quakeData);
-    const fdr = Math.min(1, corr.p * 186);
-
-    // === CALCOLA INTERVALLO DI CONFIDENZA (95%) ===
-    function confidenceInterval(r, n) {
-        if (n < 3 || r === null || isNaN(r)) return { lower: null, upper: null };
-        const z = 0.5 * Math.log((1 + r) / (1 - r));
-        const se = 1 / Math.sqrt(n - 3);
-        const lower = Math.tanh(z - 1.96 * se);
-        const upper = Math.tanh(z + 1.96 * se);
-        return { lower: lower, upper: upper };
-    }
-
-    const ci = confidenceInterval(corr.r, regionEvents.length);
-
-    // === COSTRUISCI INTERPRETAZIONE CON IC ===
-    const interpretations = interpretResult(corr.r, corr.p, fdr, regionEvents.length);
-    
-    // Aggiungi IC come nota
-    if (ci.lower !== null && ci.upper !== null) {
-        interpretations.push(`📊 IC 95%: [${ci.lower.toFixed(3)}, ${ci.upper.toFixed(3)}]`);
-    }
-
-    return {
-        region: regionName,
-        events: regionEvents.length,
-        days: days.length,
-        r: corr.r,
-        p: corr.p,
-        fdr: fdr,
-        ci: ci,
-        interpretations: interpretations
-    };
-}
 
         function runStormAnalysis(kpThreshold) {
             if (!isProUser()) {
@@ -2399,115 +2417,106 @@ function runRegionAnalysis(regionName) {
             showProResult('Analisi per magnitudo', combinedResult || result7_0);
         }
 
-         function runRegionUI() {
-    if (!isProUser()) {
-        showProLock('Analisi per regione');
-        return;
-    }
+        function runRegionUI() {
+            if (!isProUser()) {
+                showProLock('Analisi per regione');
+                return;
+            }
 
-    const regions = ['Japan', 'Chile', 'Alaska', 'Indonesia', 'California'];
-    const results = [];
-    let hasData = false;
+            const regions = ['Japan', 'Chile', 'Alaska', 'Indonesia', 'California'];
+            const results = [];
+            let hasData = false;
 
-    regions.forEach(regionName => {
-        const res = runRegionAnalysis(regionName);
-        if (res && res.events > 0) {
-            hasData = true;
-            results.push(res);
-        } else if (res) {
-            results.push(res);
+            regions.forEach(regionName => {
+                const res = runRegionAnalysis(regionName);
+                if (res && res.events > 0) {
+                    hasData = true;
+                    results.push(res);
+                } else if (res) {
+                    results.push(res);
+                }
+            });
+
+            if (!hasData) {
+                showProResult('Correlazione per regione', null);
+                return;
+            }
+
+            const container = document.getElementById('proResults');
+            if (!container) return;
+
+            let html = `<div style="font-weight:600; color:#e8edf5; margin-bottom:8px; font-size:14px;">🌍 Correlazione per regione (dati reali)</div>`;
+
+            html += `<div style="background:#0d1520; border-radius:8px; padding:10px; margin-bottom:8px; font-size:12px; overflow-x:auto;">`;
+            html += `<div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr; gap:4px; font-weight:600; color:#94a3b8; border-bottom:1px solid #1e2a3a; padding-bottom:4px; margin-bottom:4px;">
+                <div>Regione</div>
+                <div>Eventi</div>
+                <div>Giorni</div>
+                <div>r</div>
+                <div>IC 95%</div>
+                <div>FDR</div>
+            </div>`;
+
+            results.forEach(res => {
+                const rColor = (res.r !== null && Math.abs(res.r) > 0.5) ? '#4ade80' :
+                    (res.r !== null && Math.abs(res.r) > 0.3) ? '#facc15' : '#94a3b8';
+                const fdrColor = (res.fdr !== null && res.fdr < 0.05) ? '#4ade80' : '#94a3b8';
+                const rDisplay = res.r !== null ? res.r.toFixed(3) : '—';
+                const fdrDisplay = res.fdr !== null ? res.fdr.toFixed(4) : '—';
+                
+                let ciDisplay = '—';
+                if (res.ci && res.ci.lower !== null && res.ci.upper !== null) {
+                    ciDisplay = `[${res.ci.lower.toFixed(2)}, ${res.ci.upper.toFixed(2)}]`;
+                } else if (res.events > 0) {
+                    ciDisplay = `n=${res.events}`;
+                }
+                
+                html += `<div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr; gap:4px; padding:4px 0; border-bottom:1px solid #1a2535;">
+                    <div style="color:#e8edf5;">${res.region}</div>
+                    <div style="color:#94a3b8;">${res.events}</div>
+                    <div style="color:#94a3b8;">${res.days || '—'}</div>
+                    <div style="color:${rColor};">${rDisplay}</div>
+                    <div style="color:#94a3b8; font-size:10px;">${ciDisplay}</div>
+                    <div style="color:${fdrColor};">${fdrDisplay}</div>
+                </div>`;
+            });
+            html += `</div>`;
+
+            html += `<div style="display:flex; gap:12px; flex-wrap:wrap; font-size:10px; color:#64748b; margin-bottom:8px;">
+                <span>🟢 Forte (|r| > 0.5)</span>
+                <span>🟡 Moderata (|r| > 0.3)</span>
+                <span>⚪ Debole/Nulla</span>
+                <span style="color:#4ade80;">✅ FDR < 0.05</span>
+                <span style="color:#94a3b8;">⬜ FDR ≥ 0.05</span>
+                <span style="color:#64748b;">📊 IC 95%: intervallo di confidenza</span>
+            </div>`;
+
+            const validResults = results.filter(r => r.r !== null && r.events > 0);
+            if (validResults.length > 0) {
+                const avgR = validResults.reduce((sum, r) => sum + r.r, 0) / validResults.length;
+                const maxR = validResults.reduce((max, r) => Math.abs(r.r) > Math.abs(max.r) ? r : max, validResults[0]);
+
+                let summary = '';
+                if (Math.abs(avgR) < 0.1) {
+                    summary = `⚖️ In media, nessuna correlazione significativa tra Kp e terremoti nelle regioni analizzate.`;
+                } else if (avgR > 0) {
+                    summary = `📈 In media, correlazione positiva debole (r medio = ${avgR.toFixed(3)}).`;
+                } else {
+                    summary = `📉 In media, correlazione negativa debole (r medio = ${avgR.toFixed(3)}).`;
+                }
+                if (maxR && Math.abs(maxR.r) > 0.3) {
+                    summary += ` La correlazione più evidente si osserva in ${maxR.region} (r = ${maxR.r.toFixed(3)}).`;
+                }
+                const totalEvents = validResults.reduce((sum, r) => sum + r.events, 0);
+                summary += ` Totale eventi analizzati: ${totalEvents}.`;
+                summary += ` ⚠️ Regioni con < 15 eventi non sono state analizzate.`;
+                
+                html += `<div style="background:#0d1520; border-radius:8px; padding:10px; font-size:12px; color:#b0c4de; border-left: 3px solid #60a5fa;">${summary}</div>`;
+            }
+
+            container.innerHTML = html;
+            container.style.display = 'block';
         }
-    });
-
-    if (!hasData) {
-        showProResult('Correlazione per regione', null);
-        return;
-    }
-
-    const container = document.getElementById('proResults');
-    if (!container) return;
-
-    let html = `<div style="font-weight:600; color:#e8edf5; margin-bottom:8px; font-size:14px;">🌍 Correlazione per regione (dati reali)</div>`;
-
-    // Tabella con IC
-    html += `<div style="background:#0d1520; border-radius:8px; padding:10px; margin-bottom:8px; font-size:12px; overflow-x:auto;">`;
-    html += `<div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr; gap:4px; font-weight:600; color:#94a3b8; border-bottom:1px solid #1e2a3a; padding-bottom:4px; margin-bottom:4px;">
-        <div>Regione</div>
-        <div>Eventi</div>
-        <div>Giorni</div>
-        <div>r</div>
-        <div>IC 95%</div>
-        <div>FDR</div>
-    </div>`;
-
-    results.forEach(res => {
-        const rColor = (res.r !== null && Math.abs(res.r) > 0.5) ? '#4ade80' :
-            (res.r !== null && Math.abs(res.r) > 0.3) ? '#facc15' : '#94a3b8';
-        const pColor = (res.p !== null && res.p < 0.05) ? '#4ade80' : '#94a3b8';
-        const fdrColor = (res.fdr !== null && res.fdr < 0.05) ? '#4ade80' : '#94a3b8';
-        const rDisplay = res.r !== null ? res.r.toFixed(3) : '—';
-        const pDisplay = res.p !== null ? res.p.toFixed(4) : '—';
-        const fdrDisplay = res.fdr !== null ? res.fdr.toFixed(4) : '—';
-        
-        // IC display
-        let ciDisplay = '—';
-        if (res.ci && res.ci.lower !== null && res.ci.upper !== null) {
-            ciDisplay = `[${res.ci.lower.toFixed(2)}, ${res.ci.upper.toFixed(2)}]`;
-        } else if (res.events > 0) {
-            ciDisplay = `n=${res.events} (IC non calcolabile)`;
-        }
-        
-        html += `<div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr; gap:4px; padding:4px 0; border-bottom:1px solid #1a2535;">
-            <div style="color:#e8edf5;">${res.region}</div>
-            <div style="color:#94a3b8;">${res.events}</div>
-            <div style="color:#94a3b8;">${res.days || '—'}</div>
-            <div style="color:${rColor};">${rDisplay}</div>
-            <div style="color:#94a3b8; font-size:10px;">${ciDisplay}</div>
-            <div style="color:${fdrColor};">${fdrDisplay}</div>
-        </div>`;
-    });
-    html += `</div>`;
-
-    // Legenda
-    html += `<div style="display:flex; gap:12px; flex-wrap:wrap; font-size:10px; color:#64748b; margin-bottom:8px;">
-        <span>🟢 Forte (|r| > 0.5)</span>
-        <span>🟡 Moderata (|r| > 0.3)</span>
-        <span>⚪ Debole/Nulla</span>
-        <span style="color:#4ade80;">✅ p < 0.05</span>
-        <span style="color:#94a3b8;">⬜ p ≥ 0.05</span>
-        <span style="color:#facc15;">⚠️ FDR > 0.05</span>
-        <span style="color:#64748b;">📊 IC 95%: intervallo di confidenza</span>
-    </div>`;
-
-    // Sintesi
-    const validResults = results.filter(r => r.r !== null && r.events > 0);
-    if (validResults.length > 0) {
-        const avgR = validResults.reduce((sum, r) => sum + r.r, 0) / validResults.length;
-        const maxR = validResults.reduce((max, r) => Math.abs(r.r) > Math.abs(max.r) ? r : max, validResults[0]);
-
-        let summary = '';
-        if (Math.abs(avgR) < 0.1) {
-            summary = `⚖️ In media, nessuna correlazione significativa tra Kp e terremoti nelle regioni analizzate.`;
-        } else if (avgR > 0) {
-            summary = `📈 In media, correlazione positiva debole (r medio = ${avgR.toFixed(3)}).`;
-        } else {
-            summary = `📉 In media, correlazione negativa debole (r medio = ${avgR.toFixed(3)}).`;
-        }
-        if (maxR && Math.abs(maxR.r) > 0.3) {
-            summary += ` La correlazione più evidente si osserva in ${maxR.region} (r = ${maxR.r.toFixed(3)}).`;
-        }
-        const totalEvents = validResults.reduce((sum, r) => sum + r.events, 0);
-        summary += ` Totale eventi analizzati: ${totalEvents}.`;
-        
-        // Nota sulla soglia minima
-        summary += ` ⚠️ Regioni con < 15 eventi non sono state analizzate.`;
-        
-        html += `<div style="background:#0d1520; border-radius:8px; padding:10px; font-size:12px; color:#b0c4de; border-left: 3px solid #60a5fa;">${summary}</div>`;
-    }
-
-    container.innerHTML = html;
-    container.style.display = 'block';
-}
 
         function runStormUI() {
             const result7 = runStormAnalysis(7);
@@ -2733,39 +2742,38 @@ function runRegionAnalysis(regionName) {
         document.getElementById('exportJSON').addEventListener('click', exportJSON);
         document.getElementById('exportPNG').addEventListener('click', exportPNG);
 
-         // ============================================================
-// AVVIO
-// ============================================================
-if ('Notification' in window && Notification.permission === 'default') {
-    Notification.requestPermission();
-}
+        // ============================================================
+        // AVVIO
+        // ============================================================
+        if ('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
 
-// === NASCONDI I FILTRI ALL'AVVIO (modalità Base) ===
-const filtersPanel = document.getElementById('filtersPanel');
-if (filtersPanel) {
-    filtersPanel.style.display = 'none';
-}
+        const filtersPanel = document.getElementById('filtersPanel');
+        if (filtersPanel) {
+            filtersPanel.style.display = 'none';
+        }
 
-initChart();
-initMap();
-loadData();
-addProUI();
+        initChart();
+        initMap();
+        loadData();
+        addProUI();
 
-// Se la modalità è 'advanced' mostra i filtri
-if (state.mode === 'advanced' && filtersPanel) {
-    filtersPanel.style.display = 'flex';
-}
+        if (state.mode === 'advanced' && filtersPanel) {
+            filtersPanel.style.display = 'flex';
+        }
 
-setInterval(loadData, 120000);
+        setInterval(loadData, 120000);
 
-console.log('🌍 Osservatorio SGGC — Monitoraggio Anomalie');
-console.log('📡 Multi-proxy attivo: 3 tentativi per ogni API');
-console.log('⚠️ Fallback automatico a dati simulati in caso di errore');
-console.log('📱 Ottimizzata per touch con rilevamento anomalie in tempo reale');
-console.log('🔔 Notifiche attive per anomalie critiche');
-console.log('📈 Analisi statistica: correlazione Spearman + FDR');
-console.log('⭐ Versione Pro: funzionalità avanzate disponibili');
-console.log('🗺️ Mappa terremoti attiva');
+        console.log('🌍 Osservatorio SGGC — Monitoraggio Anomalie');
+        console.log('📡 USGS: chiamata diretta (CORS supportato)');
+        console.log('📡 NOAA: 3 proxy di fallback');
+        console.log('⚠️ Fallback automatico a dati simulati solo se TUTTO fallisce');
+        console.log('📱 Ottimizzata per touch con rilevamento anomalie in tempo reale');
+        console.log('🔔 Notifiche attive per anomalie critiche');
+        console.log('📈 Analisi statistica: correlazione Spearman + FDR');
+        console.log('⭐ Versione Pro: funzionalità avanzate disponibili');
+        console.log('🗺️ Mappa terremoti attiva');
     </script>
 </body>
 </html>
